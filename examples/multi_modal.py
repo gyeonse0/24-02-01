@@ -6,6 +6,7 @@ import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 import numpy.random as rnd
+from typing import List
 
 from alns import ALNS
 from alns.accept import RecordToRecordTravel
@@ -14,15 +15,17 @@ from alns.stop import MaxRuntime
 
 SEED = 1234
 
-import matplotlib.pyplot as plt
-import numpy as np
-
-from typing import List
+vrp_file_path = r'C:\Users\82102\Desktop\ALNS-master\examples\data\multi_modal_data.vrp'
+sol_file_path = r'C:\Users\82102\Desktop\ALNS-master\examples\data\multi_modal_data.sol'
 
 def read_vrp_file(file_path):
+    """
+    multi_modal_data.vrp 파일을 읽어오고, parse_section_data 함수를 이용해서 섹션별로 딕셔너리에 data를 저장해주는 함수
+    TO DO : 새로운 data 입력할 떄마다 코드 추가 필요!!
+    """
     with open(file_path, 'r') as file:
         lines = file.readlines()
-
+        
     data = {
         "name": None,
         "type": None,
@@ -63,15 +66,13 @@ def read_vrp_file(file_path):
     section = None
     for line in lines:
         parts = line.split()
-
         if not parts:
             continue
-
+        
         keyword = parts[0]
         value = " ".join(parts[1:]).strip()
 
         if keyword in ["EDGE_KM_D_TYPE:", "EDGE_KM_T_TYPE:"]:
-            # Handle edge type separately
             if keyword == "EDGE_KM_D_TYPE:":
                 data["edge_km_d_type"] = value
             elif keyword == "EDGE_KM_T_TYPE:":
@@ -79,12 +80,10 @@ def read_vrp_file(file_path):
             continue
 
         if section and keyword != section:
-
             parse_section_data(data, section, line)
-
+            
         if keyword == "EOF":
             break
-
         elif keyword == "NAME:":
             data["name"] = value
         elif keyword == "TYPE:":
@@ -155,11 +154,12 @@ def read_vrp_file(file_path):
     return data
 
 def parse_section_data(data, section, line):
+    """
+    multi_modal_data.vrp 파일의 데이터를 섹션별로 알맞게 파싱한 후 data를 저장해주는 함수
+    """
     parts = line.split()
-
     if not parts or parts[0] == "EOF":
         return
-
     if section == "NODE_COORD_SECTION":
         try:
             node_id, x, y = int(parts[0]), float(parts[1]), float(parts[2])
@@ -207,10 +207,10 @@ def parse_section_data(data, section, line):
             pass
 
 
-vrp_file_path = r'C:\Users\User\OneDrive - konkuk.ac.kr\바탕 화면\ALNS-master\ALNS-master\examples\data\multi_modal_data.vrp'
-sol_file_path = r'C:\Users\User\OneDrive - konkuk.ac.kr\바탕 화면\ALNS-master\ALNS-master\examples\data\multi_modal_data.sol'
-
-def read_sol_file(file_path): #sol_read 함수
+def read_sol_file(file_path):
+    """
+    multi_modal_data.sol 파일 읽어와서 파싱 후 데이터 저장해주는 함수
+    """
     with open(file_path, 'r') as file:
         lines = file.readlines()
 
@@ -236,9 +236,9 @@ def read_sol_file(file_path): #sol_read 함수
     return solution
 
 
-def plot_solution(data, solution, name="VRP Solution"): #plot 함수
+def plot_solution(data, solution, name="Multi_Modal Solution"):
     """
-    Plot the routes of the passed-in solution.
+    solution 데이터를 기반으로 '좌표정보, 경로순서, cost' 를 시각화해서 plot 해주는 함수 
     """
     fig, ax = plt.subplots(figsize=(12, 10))
     cmap = plt.get_cmap('rainbow')
@@ -247,15 +247,14 @@ def plot_solution(data, solution, name="VRP Solution"): #plot 함수
         ax.plot(
             [data["node_coord"][loc][0] for loc in route],
             [data["node_coord"][loc][1] for loc in route],
-            color=cmap(np.random.rand()),  # Random color for each route
+            color=cmap(np.random.rand()),  
             marker='.'
         )
-
-    # Plot the depot
+        
     kwargs = dict(label="Depot", zorder=3, marker="*", s=750)
     ax.scatter(*data["node_coord"][data["depot"]], c="tab:red", **kwargs)
 
-    ax.set_title(f"{name}\n Total distance: {solution['cost']}")
+    ax.set_title(f"{name}\nTotal Energy Consumption(cost): {solution['cost']}")
     ax.set_xlabel("X-coordinate")
     ax.set_ylabel("Y-coordinate")
     ax.legend(frameon=False, ncol=3)
@@ -274,8 +273,6 @@ class RouteGenerator:
         하나의 Route로부터 트럭의 Route와 드론의 Route를 만들어주는 클래스.
         route를 인풋으로 받고, subroute를 만들고, route의 각 노드에 대한 정보를 기억한 후, 이에 따라 트럭의 route와 드론의 route를 추출하도록 한다.
         TO DO : 현재 k, l, max_drone_mission도 인풋으로 되어있는데 지금 생각해보면 아래의 generate_subroutes()함수로 가야할 것 같음. 나중에 수정할게요
-        
-
     """
     def __init__(self, route, k, l, max_drone_mission):
         self.route = route
@@ -298,11 +295,10 @@ class RouteGenerator:
             드론이 mission을 수행할 [FLY, SERVICE, CATCH] node를 정의하고(현재는 무작위로 구현),
             FLY, SERVICE, CATCH를 만드는 기준은 FLY에서 k만큼 떨어진게 SERVICE, 여기서 l만큼 더 떨어진게 CATCH로 "임의로" 정의했고, 
             TO DO : 이 부분은 k와 l을 랜덤하게 한다던지 해서 휴리스틱적으로 디자인 가능해보임. 지금은 일단 k=2, l=1 이라는 상수로 간단하게 정의함.
-            이 과정을 max_drone_mission번 만큼 반복함으로써, 드론의 route에서 드론이 몇 번 비행할지를 통제할 수 있도록 함. \
+            이 과정을 max_drone_mission번 만큼 반복함으로써, 드론의 route에서 드론이 몇 번 비행할지를 통제할 수 있도록 함.
             break 조건문에 의해 굳이 저만큼 max까지 안채워도 반복문에서 벗어날 수 있음.
 
-            이에 따라 전체 Route의 노드가 어떤 상황인지(both, only drone, only truck ... ) 저장
-            
+            이에 따라 전체 Route의 노드가 어떤 상황인지(both, only drone, only truck ...) 저장
         """
         while len(self.subroutes) < self.max_drone_mission:
             self.FLY = random.choice(range(self.CATCH, len(self.route)))
@@ -359,11 +355,12 @@ class RouteGenerator:
  
         return truck_route, drone_route, drone_mission_info
  
-route = [0, 2, 3, 5, 7, 6, 1, 4, 0]
+#임의의 route 데이터 정의( TO DO: 이후 NN, RANDOM, ALNS 등을 사용해서 only truck opt route 정의 필요 !!)
+route = [0, 2, 3, 5, 7, 6, 1, 4, 0] 
 route_generator = RouteGenerator(route, 2, 1, 4)
 truck_route, drone_route, drone_route_info = route_generator.dividing_route()
 
-### 2차원 배열로 만들어주는 코드.. 드론의 path가 행렬로 입력될 것이기 때문!
+#드론의 path에 (0/1/2/3/4) 정보를 기억해주기 위해서 2차원 배열을 생성하여 정의
 combined = np.array([drone_route, drone_route_info])
 combined_drone_route = combined.tolist()
 
@@ -377,6 +374,10 @@ routes = {
 }
 
 class MultiModalState:
+    """
+    routes 딕셔너리 집합을 input으로 받아서 copy를 수행한 뒤, 해당 routes 에서의 정보를 추출하는 함수
+    output: objective cost value / 특정 customer node를 포함한 route  
+    """
 
     def __init__(self, routes, unassigned=None):
         self.routes = routes
@@ -389,22 +390,26 @@ class MultiModalState:
         )
 
     def objective(self, data):
+        """
+        data와 routes 딕셔너리 집합을 이용하여 objective value 계산해주는 함수
+        our objective cost value = energy_consunmption(kwh)
+        energy_consunmption(kwh)={Truck edge cost(km), Truck energy consumption(kwh/km), Drone edge cost(km), Drone energy consumption(kwh/km)}
+        TO DO: 이후에 logistic_load 등의 데이터 등을 추가로 활용하여 energy_consumption 모델링 확장 !!
+        """
         energy_consumption = 0.0
 
-        ### 내가 수정한 부분인데, 기존에 self.routes.values() 하면 오류가 나서 수정했음
-        ### routes가 딕셔너리이고 그 중 'route'라는 키에 해당하는 밸류, 즉 리스트를 가져오도록 코드 수정했음. 이거 하려던거 맞지? 
         for route in self.routes['route']: 
             vtype = route['vtype']
             path = route['path']
 
             if vtype == 'truck':
-                for i in range(len(path) - 1): #트럭은 처음부터 마지막까지 전체엣지를 고려해준다는 알고리즘
+                for i in range(len(path) - 1): #트럭은 처음부터 마지막까지 전체 edge를 고려해준다는 알고리즘
                     edge_weight = data["edge_km_t"][path[i]][path[i+1]]
                     energy_consumption += edge_weight * data["energy_kwh/km_t"]
 
             elif vtype == 'drone':
                 for j in range(len(path[0]) - 1):
-                    if path[1][j] == 1: #노드에 저장된 정보가 1이면 다음, 다다음 까지의 엣지만 고려해준다는 알고리즘
+                    if path[1][j] == 1: #노드에 저장된 정보가 1이면 다음, 다다음 까지의 edge만 고려해준다는 알고리즘
                         edge_weight = data["edge_km_d"][path[0][j]][path[0][j+1]]
                         energy_consumption += edge_weight * data["energy_kwh/km_d"]
 
@@ -423,7 +428,7 @@ class MultiModalState:
 
     def find_route(self, customer):
        
-        for route in self.routes.values():
+        for route in self.routes['route']:
             if customer in route['path']:
                 return route
             
@@ -432,11 +437,9 @@ class MultiModalState:
 
 my_state = MultiModalState(routes)
 result = my_state.objective(data)
-print(result)
 
-
-### 여기까지 출력되는거 확인 완료. 문제있었던 부분 다 수정했고 for문 하나하나 다 디버깅해봤는데 energy consumption 그렇게 작게 나오는거 맞는듯.
-### 이 아래부터는 ALNS destroy/repair 관련 코드라서 여기 위까지만 보면되고 이 아래부터는 에러가 뜰거임 -> 자세한 설명은 아래로 ㄱㄱ
+print("Our routes :", routes)
+print("Our Objective cost :",result)
         
 degree_of_destruction = 0.05
 customers_to_remove = int((data["dimension"] - 1) * degree_of_destruction)
@@ -529,11 +532,6 @@ def neighbors(customer):
     """
     locations = np.argsort(data["edge_weight"][customer])
     return locations[locations != 0]
-
-### 여기서부터 오류가 나는데, 원래 ALNS 코드에서 routes는 아래처럼 [], 즉 리스트로 저장되어 있어서 그럼. 
-### 반면 우리는 새로 routes의 구조를 바꿔서 자료형도 딕셔너리가 되었으니 오류가 뜨는 것임.
-### 내일(금요일)에 체크인할 때는 여기 수정해서 nearest_neighbor() 함수 우리 자료형에 맞게 수정하고 
-### destroy, repair operator 어떻게 할지 구상하고 구현해보겠다고 말하면 될 듯!!
 
 def nearest_neighbor():
     """
