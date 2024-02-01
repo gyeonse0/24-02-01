@@ -21,7 +21,7 @@ sol_file_path = r'C:\Users\82102\Desktop\ALNS-master\examples\data\multi_modal_d
 def read_vrp_file(file_path):
     """
     multi_modal_data.vrp 파일을 읽어오고, parse_section_data 함수를 이용해서 섹션별로 딕셔너리에 data를 저장해주는 함수
-    TO DO : 새로운 data 입력할 떄마다 코드 추가 필요!!
+    TO DO : 새로운 data 입력할 때마다 코드 추가 필요!!
     """
     with open(file_path, 'r') as file:
         lines = file.readlines()
@@ -150,7 +150,7 @@ def read_vrp_file(file_path):
         elif keyword == "EDGE_KM_T":
             section = "EDGE_KM_T"
             data["edge_km_t"] = []
-
+    
     return data
 
 def parse_section_data(data, section, line):
@@ -264,6 +264,7 @@ print(data)
 bks = read_sol_file(sol_file_path)
 print(bks)
 
+#sol 파일 읽어서 plot 확인해주는 코드
 plot_solution(data, bks, name="Multi_Modal Solution")
 plt.show()
 
@@ -434,13 +435,15 @@ class MultiModalState:
             
         raise ValueError(f"Solution does not contain customer {customer}.")
     
-
+#routes 및 cost 출력 코드
 my_state = MultiModalState(routes)
 result = my_state.objective(data)
-
 print("Our routes :", routes)
 print("Our Objective cost :",result)
-        
+
+"""
+____ 2024/02/02 ____
+"""
 degree_of_destruction = 0.05
 customers_to_remove = int((data["dimension"] - 1) * degree_of_destruction)
 
