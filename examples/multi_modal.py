@@ -207,8 +207,8 @@ def parse_section_data(data, section, line):
             pass
 
 
-vrp_file_path = r'C:\Users\User\OneDrive\바탕 화면\ALNS-master\ALNS-master\examples\data\multi_modal_data.vrp'
-sol_file_path = r'C:\Users\User\OneDrive\바탕 화면\ALNS-master\ALNS-master\examples\data\multi_modal_data.sol'
+vrp_file_path = r'C:\Users\User\OneDrive - konkuk.ac.kr\바탕 화면\ALNS-master\ALNS-master\examples\data\multi_modal_data.vrp'
+sol_file_path = r'C:\Users\User\OneDrive - konkuk.ac.kr\바탕 화면\ALNS-master\ALNS-master\examples\data\multi_modal_data.sol'
 
 def read_sol_file(file_path): #sol_read 함수
     with open(file_path, 'r') as file:
@@ -269,7 +269,14 @@ plot_solution(data, bks, name="Multi_Modal Solution")
 plt.show()
 
 
-class RouteManager:
+class RouteGenerator:
+    """
+        하나의 Route로부터 트럭의 Route와 드론의 Route를 만들어주는 클래스.
+        route를 인풋으로 받고, subroute를 만들고, route의 각 노드에 대한 정보를 기억한 후, 이에 따라 트럭의 route와 드론의 route를 추출하도록 한다.
+        TO DO : 현재 k, l, max_drone_mission도 인풋으로 되어있는데 지금 생각해보면 아래의 generate_subroutes()함수로 가야할 것 같음. 나중에 수정할게요
+        
+
+    """
     def __init__(self, route, k, l, max_drone_mission):
         self.route = route
         self.depot_end = len(route) - 1
@@ -287,6 +294,16 @@ class RouteManager:
         self.generate_subroutes()
  
     def generate_subroutes(self):
+        """
+            드론이 mission을 수행할 [FLY, SERVICE, CATCH] node를 정의하고(현재는 무작위로 구현),
+            FLY, SERVICE, CATCH를 만드는 기준은 FLY에서 k만큼 떨어진게 SERVICE, 여기서 l만큼 더 떨어진게 CATCH로 "임의로" 정의했고, 
+            TO DO : 이 부분은 k와 l을 랜덤하게 한다던지 해서 휴리스틱적으로 디자인 가능해보임. 지금은 일단 k=2, l=1 이라는 상수로 간단하게 정의함.
+            이 과정을 max_drone_mission번 만큼 반복함으로써, 드론의 route에서 드론이 몇 번 비행할지를 통제할 수 있도록 함. \
+            break 조건문에 의해 굳이 저만큼 max까지 안채워도 반복문에서 벗어날 수 있음.
+
+            이에 따라 전체 Route의 노드가 어떤 상황인지(both, only drone, only truck ... ) 저장
+            
+        """
         while len(self.subroutes) < self.max_drone_mission:
             self.FLY = random.choice(range(self.CATCH, len(self.route)))
             self.SERVICE = self.FLY + self.k
@@ -298,8 +315,17 @@ class RouteManager:
             self.fly_node_index.append(self.FLY)
             self.only_drone_index.append(self.SERVICE)
             self.catch_node_index.append(self.CATCH)
- 
+
     def get_visit_type(self):
+        """
+            전체 Route의 노드가 어떤 상황인지(both, only drone, only truck ... ) 저장하는 리스트 생성
+            subroute를 만들며 저장했던 fly_node_index, catch_node_index, only_drone_index 활용.
+            TO DO : 이 index들을 이 함수의 input으로 놓아야 더 깔끔한 함수인가? 고민해봐야겠다...
+        Returns:
+            _type_: 리스트
+            route와 length가 같고, 이 리스트의 value가 곧 route의 상황 반영 
+            이 visit_type 리스트 정보를 이용하여 트럭의 route와 드론의 route 추출할 것임
+        """
         visit_type = [0] * len(self.route)
         visit_type = [
             1 if index in self.fly_node_index else
@@ -315,34 +341,40 @@ class RouteManager:
         return visit_type
  
     def dividing_route(self):
+        """_summary_
+            위의 정보들을 기반으로 트럭의 route, 드론의 route를 추출한다. 이때 드론 Objective 계산시 편의를 위해 드론 route만의 visit_type 리스트도 저장해준다.
+        Returns:
+            _type_: 리스트
+            truck_route : 전체 route에서 드론이 방문한 노드를 제외한 route.
+            drone_route : 전체 route에서 트럭만 방문한 노드를 제외한 route.
+            drone_mission_info : drone_route의 visit_type를 따로 저장 -> 드론이 미션 수행했을 때의 cost, 드론이 트럭에 업혀있을 때의 충전 등을 한꺼번에 고려 가능
+        """
         my_type = self.get_visit_type()
         only_truck = [index for index, value in enumerate(my_type) if value == 4]
         only_drone = [index for index, value in enumerate(my_type) if value == 2]
  
         truck_route = [value for index, value in enumerate(self.route) if index not in only_drone]
         drone_route = [value for index, value in enumerate(self.route) if index not in only_truck]
+        drone_mission_info = [value for index, value in enumerate(my_type) if index not in only_truck]
  
-        return truck_route, drone_route
+        return truck_route, drone_route, drone_mission_info
  
-route = [0, 2, 3, 5, 8, 7, 6, 1, 4, 0]
-route_manager = RouteManager(route, 2, 1, 4)
-truck_route, drone_route = route_manager.dividing_route()
+route = [0, 2, 3, 5, 7, 6, 1, 4, 0]
+route_generator = RouteGenerator(route, 2, 1, 4)
+truck_route, drone_route, drone_route_info = route_generator.dividing_route()
 
-print(truck_route,drone_route)
-
-print("박연서 ㅄ")
-print(route_manager.get_visit_type())
+### 2차원 배열로 만들어주는 코드.. 드론의 path가 행렬로 입력될 것이기 때문!
+combined = np.array([drone_route, drone_route_info])
+combined_drone_route = combined.tolist()
 
 routes = {
     'num_t' : 1,
     'num_d' : 1,
     'route': [
-        {'vtype': 'drone', 'vid': 'd1', 'path': drone_route},
+        {'vtype': 'drone', 'vid': 'd1', 'path': combined_drone_route},
         {'vtype': 'truck', 'vid': 't1', 'path': truck_route}
     ]
 }
-
-### 준영아. 드론 라우트를 뽑았을 때 노드 정보 리스트도 함께 데리고 오게 해서 4가 없어진 정보를 기억할 수 있도록 해봐
 
 class MultiModalState:
 
@@ -357,10 +389,11 @@ class MultiModalState:
         )
 
     def objective(self, data):
-       
         energy_consumption = 0.0
 
-        for route in self.routes.values():
+        ### 내가 수정한 부분인데, 기존에 self.routes.values() 하면 오류가 나서 수정했음
+        ### routes가 딕셔너리이고 그 중 'route'라는 키에 해당하는 밸류, 즉 리스트를 가져오도록 코드 수정했음. 이거 하려던거 맞지? 
+        for route in self.routes['route']: 
             vtype = route['vtype']
             path = route['path']
 
@@ -370,12 +403,12 @@ class MultiModalState:
                     energy_consumption += edge_weight * data["energy_kwh/km_t"]
 
             elif vtype == 'drone':
-                for j in range(len(path) - 1):
-                    if path[j][1] == 1: #노드에 저장된 정보가 1이면 다음, 다다음 까지의 엣지만 고려해준다는 알고리즘
-                        edge_weight = data["edge_km_d"][path[j]][path[j+1]]
+                for j in range(len(path[0]) - 1):
+                    if path[1][j] == 1: #노드에 저장된 정보가 1이면 다음, 다다음 까지의 엣지만 고려해준다는 알고리즘
+                        edge_weight = data["edge_km_d"][path[0][j]][path[0][j+1]]
                         energy_consumption += edge_weight * data["energy_kwh/km_d"]
 
-                        edge_weight_next = data["edge_km_d"][path[j+1]][path[j+2]]
+                        edge_weight_next = data["edge_km_d"][path[0][j+1]][path[0][j+2]]
                         energy_consumption += edge_weight_next * data["energy_kwh/km_d"]
 
         return energy_consumption
@@ -400,8 +433,10 @@ class MultiModalState:
 my_state = MultiModalState(routes)
 result = my_state.objective(data)
 print(result)
-#츌력되는거 확인필요
 
+
+### 여기까지 출력되는거 확인 완료. 문제있었던 부분 다 수정했고 for문 하나하나 다 디버깅해봤는데 energy consumption 그렇게 작게 나오는거 맞는듯.
+### 이 아래부터는 ALNS destroy/repair 관련 코드라서 여기 위까지만 보면되고 이 아래부터는 에러가 뜰거임 -> 자세한 설명은 아래로 ㄱㄱ
         
 degree_of_destruction = 0.05
 customers_to_remove = int((data["dimension"] - 1) * degree_of_destruction)
@@ -495,6 +530,10 @@ def neighbors(customer):
     locations = np.argsort(data["edge_weight"][customer])
     return locations[locations != 0]
 
+### 여기서부터 오류가 나는데, 원래 ALNS 코드에서 routes는 아래처럼 [], 즉 리스트로 저장되어 있어서 그럼. 
+### 반면 우리는 새로 routes의 구조를 바꿔서 자료형도 딕셔너리가 되었으니 오류가 뜨는 것임.
+### 내일(금요일)에 체크인할 때는 여기 수정해서 nearest_neighbor() 함수 우리 자료형에 맞게 수정하고 
+### destroy, repair operator 어떻게 할지 구상하고 구현해보겠다고 말하면 될 듯!!
 
 def nearest_neighbor():
     """
