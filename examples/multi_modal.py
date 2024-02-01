@@ -21,7 +21,7 @@ sol_file_path = r'C:\Users\82102\Desktop\ALNS-master\examples\data\multi_modal_d
 def read_vrp_file(file_path):
     """
     multi_modal_data.vrp 파일을 읽어오고, parse_section_data 함수를 이용해서 섹션별로 딕셔너리에 data를 저장해주는 함수
-    TO DO : 새로운 data 입력할 때마다 코드 추가 필요!!
+    TO DO : 새로운 data 입력할 떄마다 코드 추가 필요!!
     """
     with open(file_path, 'r') as file:
         lines = file.readlines()
@@ -150,7 +150,7 @@ def read_vrp_file(file_path):
         elif keyword == "EDGE_KM_T":
             section = "EDGE_KM_T"
             data["edge_km_t"] = []
-    
+
     return data
 
 def parse_section_data(data, section, line):
@@ -238,7 +238,7 @@ def read_sol_file(file_path):
 
 def plot_solution(data, solution, name="Multi_Modal Solution"):
     """
-    solution 데이터를 기반으로 '좌표정보, 경로순서, cost' 를 시각화해서 plot 해주는 함수 
+    vrp, sol 파일 기반으로 '좌표정보, 경로순서, cost' 를 시각화해서 plot 해주는 함수 
     """
     fig, ax = plt.subplots(figsize=(12, 10))
     cmap = plt.get_cmap('rainbow')
@@ -253,21 +253,61 @@ def plot_solution(data, solution, name="Multi_Modal Solution"):
         
     kwargs = dict(label="Depot", zorder=3, marker="*", s=750)
     ax.scatter(*data["node_coord"][data["depot"]], c="tab:red", **kwargs)
-
-    ax.set_title(f"{name}\nTotal Energy Consumption(cost): {solution['cost']}")
+    for node, (x, y) in data["node_coord"].items():
+        ax.annotate(str(node), (x, y), textcoords="offset points", xytext=(0, 5), ha='center')
+    ax.set_title(f"{name}\nTotal Energy Consumption(cost): {solution['cost']} kwh")
     ax.set_xlabel("X-coordinate")
     ax.set_ylabel("Y-coordinate")
     ax.legend(frameon=False, ncol=3)
+    plt.show()
 
 data = read_vrp_file(vrp_file_path)
 print(data)
 bks = read_sol_file(sol_file_path)
-print(bks)
 
-#sol 파일 읽어서 plot 확인해주는 코드
+"""
 plot_solution(data, bks, name="Multi_Modal Solution")
-plt.show()
+"""
 
+def plot_current_solution(data, routes, name="Multi_Modal Solution"):
+    """
+    우리가 뽑아낸 routes 딕셔너리 집합과 solution class를 통해서 현재의 cost와 path를 plot 해주는 함수
+    """
+    fig, ax = plt.subplots(figsize=(12, 10))
+    cmap = plt.get_cmap('rainbow')
+
+    for route_info in routes['route']:
+        vtype = route_info['vtype']
+        vid = route_info['vid']
+        path = route_info['path']
+
+        if vtype == 'drone':
+            path = combined_drone_route[0]
+
+        if vtype == 'drone':
+            color = 'b'
+        elif vtype == 'truck':
+            color = 'g'
+        else:
+            color = 'k'
+
+        ax.plot(
+            [data['node_coord'][loc][0] for loc in path],
+            [data['node_coord'][loc][1] for loc in path],
+            color=color,
+            marker='.',
+            label=f'{vtype} {vid}'
+        )
+
+    kwargs = dict(label="Depot", zorder=3, marker="*", s=750)
+    ax.scatter(*data["node_coord"][data["depot"]], c="tab:red", **kwargs)
+    for node, (x, y) in data["node_coord"].items():
+        ax.annotate(str(node), (x, y), textcoords="offset points", xytext=(0, 5), ha='center')
+    ax.set_title(f"{name}\nTotal Energy Consumption(cost): {MultiModalState(routes).objective(data)} kWh")
+    ax.set_xlabel("X-coordinate")
+    ax.set_ylabel("Y-coordinate")
+    ax.legend(frameon=False, ncol=3)
+    plt.show()
 
 class RouteGenerator:
     """
@@ -356,8 +396,9 @@ class RouteGenerator:
  
         return truck_route, drone_route, drone_mission_info
  
-#임의의 route 데이터 정의( TO DO: 이후 NN, RANDOM, ALNS 등을 사용해서 only truck opt route 정의 필요 !!)
-route = [0, 2, 3, 5, 7, 6, 1, 4, 0] 
+#임의의 route 데이터 정의
+# (TO DO: 이후 NN, RANDOM, ALNS 등을 사용해서 only truck opt route 정의 필요 & route를 routes 딕셔너리 집합안에 append 해주는 함수 필요 !!)
+route = [0, 5, 4, 6, 3, 2, 7, 1, 0] 
 route_generator = RouteGenerator(route, 2, 1, 4)
 truck_route, drone_route, drone_route_info = route_generator.dividing_route()
 
@@ -369,7 +410,7 @@ routes = {
     'num_t' : 1,
     'num_d' : 1,
     'route': [
-        {'vtype': 'drone', 'vid': 'd1', 'path': combined_drone_route},
+        {'vtype': 'drone', 'vid': 'd1', 'path': combined_drone_route}, #드론은 2차원 배열 combined_drone_route[0]= path, combined_drone_route[1]=drone_mission_info
         {'vtype': 'truck', 'vid': 't1', 'path': truck_route}
     ]
 }
@@ -395,7 +436,7 @@ class MultiModalState:
         data와 routes 딕셔너리 집합을 이용하여 objective value 계산해주는 함수
         our objective cost value = energy_consunmption(kwh)
         energy_consunmption(kwh)={Truck edge cost(km), Truck energy consumption(kwh/km), Drone edge cost(km), Drone energy consumption(kwh/km)}
-        TO DO: 이후에 logistic_load 등의 데이터 등을 추가로 활용하여 energy_consumption 모델링 확장 !!
+        TO DO: 이후에 logistic_load 등의 데이터 등을 추가로 활용하여 energy_consumption 모델링 확장 필요
         """
         energy_consumption = 0.0
 
@@ -434,16 +475,17 @@ class MultiModalState:
                 return route
             
         raise ValueError(f"Solution does not contain customer {customer}.")
-    
-#routes 및 cost 출력 코드
-my_state = MultiModalState(routes)
-result = my_state.objective(data)
-print("Our routes :", routes)
-print("Our Objective cost :",result)
+
+
+print("\nOur routes :", routes)
+print("\nOur Objective cost :",MultiModalState(routes).objective(data))
+
+plot_current_solution(data,routes,name="Multi_Modal Solution")
+
 
 """
-____ 2024/02/02 ____
-"""
+heuristics/ALNS part 
+"""        
 degree_of_destruction = 0.05
 customers_to_remove = int((data["dimension"] - 1) * degree_of_destruction)
 
