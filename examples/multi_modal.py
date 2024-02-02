@@ -387,10 +387,14 @@ class RouteGenerator:
             drone_mission_info : drone_route의 visit_type를 따로 저장 -> 드론이 미션 수행했을 때의 cost, 드론이 트럭에 업혀있을 때의 충전 등을 한꺼번에 고려 가능
         """
         my_type = self.get_visit_type()
-        only_truck = [index for index, value in enumerate(my_type) if value == 4]
-        only_drone = [index for index, value in enumerate(my_type) if value == 2]
- 
-        truck_route = [value for index, value in enumerate(self.route) if index not in only_drone]
+        only_truck = [index for index, value in enumerate(my_type) if value == 4] #삭제가능
+        only_drone = [index for index, value in enumerate(my_type) if value == 2] #삭제가능
+        
+        # [(depot, 0), (1, 1), (4, 1), (5,3), (depot, 0)]
+        # [value for index, value in enumerate(self.route) if value[1] != 2]
+
+        # truck_route = [value for index, value in enumerate(self.route) if visit_type[index] != 2]
+        truck_route = [value for index, value in enumerate(self.route) if index not in only_drone] 
         drone_route = [value for index, value in enumerate(self.route) if index not in only_truck]
         drone_mission_info = [value for index, value in enumerate(my_type) if index not in only_truck]
  
