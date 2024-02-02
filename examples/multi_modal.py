@@ -264,8 +264,8 @@ def plot_solution(data, solution, name="Multi_Modal Solution"):
 data = read_vrp_file(vrp_file_path)
 print(data)
 bks = read_sol_file(sol_file_path)
-
 """
+print(bks)
 plot_solution(data, bks, name="Multi_Modal Solution")
 """
 
@@ -303,11 +303,58 @@ def plot_current_solution(data, routes, name="Multi_Modal Solution"):
     ax.scatter(*data["node_coord"][data["depot"]], c="tab:red", **kwargs)
     for node, (x, y) in data["node_coord"].items():
         ax.annotate(str(node), (x, y), textcoords="offset points", xytext=(0, 5), ha='center')
-    ax.set_title(f"{name}\nTotal Energy Consumption(cost): {MultiModalState(routes).objective(data)} kWh")
+    ax.set_title(f"{name}\nTotal Energy Consumption(cost): {MultiModalState(routes).objective()} kWh")
     ax.set_xlabel("X-coordinate")
     ax.set_ylabel("Y-coordinate")
     ax.legend(frameon=False, ncol=3)
     plt.show()
+
+
+def neighbors_init_truck(customer):
+    """
+    truck의 distance(km) edge data를 기반으로, 해당 customer의 neighbor 노드 탐색
+    """
+    locations = np.argsort(data["edge_km_t"][customer])
+    return locations[locations != 0]
+
+def nearest_neighbor_init_truck():
+    """
+    truck의 capacity 조건을 만족하면서, 가까우면서, 방문한적 없는 노드를 truck_init_route에 순차적으로 append하여 
+    truck_init_routes 결정 -> 이를 통해 이후 RouteGenerator의 input route로 작용
+    """
+    truck_init_routes = []
+    unvisited = set(range(1, data["dimension"]))
+
+    while unvisited:
+        route = [0]  # Start at the depot
+        route_demands = 0
+
+        while unvisited:
+            # Add the nearest unvisited customer to the route till max capacity
+            current = route[-1]
+            nearest = [nb for nb in neighbors_init_truck(current) if nb in unvisited][0]
+
+            if route_demands + data["demand"][nearest] > data["capacity_t"]:
+                break
+
+            route.append(nearest)
+            unvisited.remove(nearest)
+            route_demands += data["demand"][nearest]
+
+        customers = route[1:]  # Remove the depot
+        truck_init_routes.append(customers)
+        
+    truck_init_routes = route + [0]
+
+    return truck_init_routes
+
+init_routes = {
+    'num_t' : 1,
+    'num_d' : 0,
+    'route': [
+        {'vtype': 'truck', 'vid': 't1', 'path': nearest_neighbor_init_truck()}
+    ]
+}
 
 class RouteGenerator:
     """
@@ -400,9 +447,8 @@ class RouteGenerator:
  
         return truck_route, drone_route, drone_mission_info
  
-#임의의 route 데이터 정의
-# (TO DO: 이후 NN, RANDOM, ALNS 등을 사용해서 only truck opt route 정의 필요 & route를 routes 딕셔너리 집합안에 append 해주는 함수 필요 !!)
-route = [0, 5, 4, 6, 3, 2, 7, 1, 0] 
+#NN으로 init truck route 정의 후, routegenerator CLASS 생성
+route = nearest_neighbor_init_truck()
 route_generator = RouteGenerator(route, 2, 1, 4)
 truck_route, drone_route, drone_route_info = route_generator.dividing_route()
 
@@ -410,11 +456,12 @@ truck_route, drone_route, drone_route_info = route_generator.dividing_route()
 combined = np.array([drone_route, drone_route_info])
 combined_drone_route = combined.tolist()
 
+#TO DO: routes 딕셔너리 집합에 append 해주는 함수 정의 필요
 routes = {
     'num_t' : 1,
     'num_d' : 1,
     'route': [
-        {'vtype': 'drone', 'vid': 'd1', 'path': combined_drone_route}, #드론은 2차원 배열 combined_drone_route[0]= path, combined_drone_route[1]=drone_mission_info
+        {'vtype': 'drone', 'vid': 'd1', 'path': combined_drone_route},
         {'vtype': 'truck', 'vid': 't1', 'path': truck_route}
     ]
 }
@@ -435,7 +482,7 @@ class MultiModalState:
             unassigned=self.unassigned.copy()
         )
 
-    def objective(self, data):
+    def objective(self):
         """
         data와 routes 딕셔너리 집합을 이용하여 objective value 계산해주는 함수
         our objective cost value = energy_consunmption(kwh)
@@ -480,12 +527,12 @@ class MultiModalState:
             
         raise ValueError(f"Solution does not contain customer {customer}.")
 
+print("\nInit route :",nearest_neighbor_init_truck())
+print("\nCurrent routes :", routes)
+print("\nCurrent Objective cost :",MultiModalState(routes).objective())
 
-print("\nOur routes :", routes)
-print("\nOur Objective cost :",MultiModalState(routes).objective(data))
-
+plot_current_solution(data,init_routes,name="Init Solution(NN/Truck)")
 plot_current_solution(data,routes,name="Multi_Modal Solution")
-
 
 """
 heuristics/ALNS part 
@@ -575,51 +622,13 @@ def insert_cost(customer, route, idx):
     return dist[pred][customer] + dist[customer][succ] - dist[pred][succ]
 
 
-def neighbors(customer):
-    """
-    Return the nearest neighbors of the customer, excluding the depot.
-    """
-    locations = np.argsort(data["edge_weight"][customer])
-    return locations[locations != 0]
-
-def nearest_neighbor():
-    """
-    Build a solution by iteratively constructing routes, where the nearest
-    customer is added until the route has met the vehicle capacity limit.
-    """
-    routes = []
-    unvisited = set(range(1, data["dimension"]))
-
-    while unvisited:
-        route = [0]  # Start at the depot
-        route_demands = 0
-
-        while unvisited:
-            # Add the nearest unvisited customer to the route till max capacity
-            current = route[-1]
-            nearest = [nb for nb in neighbors(current) if nb in unvisited][0]
-
-            if route_demands + data["demand"][nearest] > data["capacity"]:
-                break
-
-            route.append(nearest)
-            unvisited.remove(nearest)
-            route_demands += data["demand"][nearest]
-
-        customers = route[1:]  # Remove the depot
-        routes.append(customers)
-
-    return MultiModalState(routes)
-
-plot_solution(nearest_neighbor(), 'Nearest neighbor solution')
-
-
 def main():
     alns = ALNS(rnd.RandomState(SEED))
     alns.add_destroy_operator(random_removal)
     alns.add_repair_operator(greedy_repair)
     
-    init = nearest_neighbor()
+    init = MultiModalState(routes) 
+    #our init : 트럭nn으로 정렬 후 이것저것 따져서 드론,트럭 분할된 거 (?) / original : init = nearest_neighbor()
     select = RouletteWheel([25, 5, 1, 0], 0.8, 1, 1)
     accept = RecordToRecordTravel.autofit(init.objective(), 0.02, 0, 9000)
     stop = MaxRuntime(60)
@@ -631,7 +640,7 @@ def main():
     pct_diff = 100 * (objective - bks.cost) / bks.cost
     
     print(f"Best heuristic objective is {objective}.")
-    print(f"This is {pct_diff:.1f}% worse than the optimal solution, which is {bks.cost}.")
+    print(f"This is {pct_diff:.1f}%  worse than the optimal solution, which is {bks.cost}.")
 
     _, ax = plt.subplots(figsize=(12, 6))
     result.plot_objectives(ax=ax)
@@ -639,7 +648,3 @@ def main():
     
 if __name__ == "__main__":
     main()
-    plot_solution(nearest_neighbor(), 'Nearest neighbor solution')
-    plot_solution(bks, name="Best known solution")
-    
-    plt.show()
