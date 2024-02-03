@@ -549,19 +549,21 @@ class MultiModalState:
             vtype = route['vtype']
             path = route['path']
 
-            if vtype == 'truck':
-                for i in range(len(path) - 1): #트럭은 처음부터 마지막까지 전체 edge를 고려해준다는 알고리즘
+            if vtype == 'truck': #트럭은 처음부터 마지막까지 전체 edge를 모두 고려해준다는 알고리즘
+                for i in range(len(path) - 1): 
                     edge_weight = data["edge_km_t"][path[i]][path[i+1]]
                     energy_consumption += edge_weight * data["energy_kwh/km_t"]
 
-            elif vtype == 'drone':
+            elif vtype == 'drone': #드론은 1(fly)부터 3(catch)까지만의 edge를 반복적으로 고려해준다는 알고리즘
+                start_index = None 
                 for j in range(len(path[0]) - 1):
-                    if path[1][j] == 1: #노드에 저장된 정보가 1이면 다음, 다다음 까지의 edge만 고려해준다는 알고리즘
-                        edge_weight = data["edge_km_d"][path[0][j]][path[0][j+1]]
-                        energy_consumption += edge_weight * data["energy_kwh/km_d"]
-
-                        edge_weight_next = data["edge_km_d"][path[0][j+1]][path[0][j+2]]
-                        energy_consumption += edge_weight_next * data["energy_kwh/km_d"]
+                    if path[1][j] == 1:
+                        start_index = j 
+                    elif path[1][j] == 3 and start_index is not None:
+                        for k in range(start_index, j):
+                            edge_weight = data["edge_km_d"][path[0][k]][path[0][k+1]]
+                            energy_consumption += edge_weight * data["energy_kwh/km_d"]
+                        start_index = None
 
         return energy_consumption
     
