@@ -1,6 +1,6 @@
 # Multi_Modal solution research
 
 examples/data/multi_modal_data.vrp
-examples/data/multi_modal_data.sol
+\nexamples/data/multi_modal_data.sol
 
 examples/multi_modal.py
