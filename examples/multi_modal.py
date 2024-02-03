@@ -18,343 +18,399 @@ SEED = 1234
 vrp_file_path = r'C:\Users\82102\Desktop\ALNS-master\examples\data\multi_modal_data.vrp'
 sol_file_path = r'C:\Users\82102\Desktop\ALNS-master\examples\data\multi_modal_data.sol'
 
-def read_vrp_file(file_path):
+class FileReader:
     """
-    multi_modal_data.vrp 파일을 읽어오고, parse_section_data 함수를 이용해서 섹션별로 딕셔너리에 data를 저장해주는 함수
-    TO DO : 새로운 data 입력할 떄마다 코드 추가 필요!!
+    multi_modal_data.vrp, multi_modal_data.sol 파일을 파싱하고 읽어오는 클래스
+    TO DO : 새로운 data 입력 및 수정할 떄마다 코드 추가 필요!!
     """
-    with open(file_path, 'r') as file:
-        lines = file.readlines()
-        
-    data = {
-        "name": None,
-        "type": None,
-        "vehicles": None,
-        "dimension": None,
-        "maximum_system_duration": None,
-        "service_time": None,
-        "max_waiting_time": None,
-        "init_soc": None,
-        "max_soc": None,
-        "min_soc_t": None,
-        "min_soc_d": None,
-        "capacity_t": None,
-        "capacity_d": None,
-        "cargo_limit_drone": None,
-        "battery_kwh_t": None,
-        "battery_kwh_d": None,
-        "energy_kwh/km_t": None,
-        "energy_kwh/km_d": None,
-        "losistic_kwh/kg_t": None,
-        "losistic_kwh/kg_d": None,
-        "speed_t": None,
-        "speed_d": None,
-        "node_coord": {},
-        "demand": {},
-        "logistic_load": {},
-        "availability_landing_spot": {},
-        "customer_drone_preference": {},
-        "depot": None,
-        "edge_km_d_type": None,
-        "edge_km_t_type": None,
-        "edge_km_d_format": None,
-        "edge_km_t_format": None,
-        "edge_km_d": [],
-        "edge_km_t": [],
-    }
+    def __init__(self):
+        self.data = {
+            "name": None,
+            "type": None,
+            "vehicles": None,
+            "dimension": None,
+            "num_t": None,
+            "num_d": None,
+            "maximum_system_duration": None,
+            "service_time": None,
+            "max_waiting_time": None,
+            "init_soc": None,
+            "max_soc": None,
+            "min_soc_t": None,
+            "min_soc_d": None,
+            "capacity_t": None,
+            "capacity_d": None,
+            "cargo_limit_drone": None,
+            "battery_kwh_t": None,
+            "battery_kwh_d": None,
+            "energy_kwh/km_t": None,
+            "energy_kwh/km_d": None,
+            "losistic_kwh/kg_t": None,
+            "losistic_kwh/kg_d": None,
+            "speed_t": None,
+            "speed_d": None,
+            "node_coord": {},
+            "demand": {},
+            "logistic_load": {},
+            "availability_landing_spot": {},
+            "customer_drone_preference": {},
+            "depot": None,
+            "edge_km_d_type": None,
+            "edge_km_t_type": None,
+            "edge_km_d_format": None,
+            "edge_km_t_format": None,
+            "edge_km_d": [],
+            "edge_km_t": [],
+        }
+        self.section = None
 
-    section = None
-    for line in lines:
+    def read_vrp_file(self, file_path):
+        """
+        multi_modal_data.vrp 파일을 읽어오고, parse_section_data 함수를 이용해서 섹션별로 딕셔너리에 data를 저장해주는 함수
+        """
+        with open(file_path, 'r') as file:
+            lines = file.readlines()
+
+        for line in lines:
+            parts = line.split()
+            if not parts:
+                continue
+
+            keyword = parts[0]
+            value = " ".join(parts[1:]).strip()
+
+            if keyword in ["EDGE_KM_D_TYPE:", "EDGE_KM_T_TYPE:"]:
+                self.parse_edge_km_type(keyword, value)
+                continue
+            if self.section and keyword != self.section:
+                self.parse_section_data(line)
+            if keyword == "EOF":
+                break
+            elif keyword == "NAME:":
+                self.data["name"] = value
+            elif keyword == "TYPE:":
+                self.data["type"] = value
+            elif keyword == "VEHICLES:":
+                self.data["vehicles"] = int(value)
+            elif keyword == "NUM_T:":
+                self.data["num_t"] = int(value)
+            elif keyword == "NUM_D:":
+                self.data["num_d"] = int(value)
+            elif keyword == "DIMENSION:":
+                self.data["dimension"] = int(value)
+            elif keyword == "MAXIMUM_SYSTEM_DURATION:":
+                self.data["maximum_system_duration"] = int(value)
+            elif keyword == "SERVICETIME:":
+                self.data["service_time"] = int(value)
+            elif keyword == "MAX_WAITING_TIME:":
+                self.data["max_waiting_time"] = int(value)
+            elif keyword == "INIT_SOC:":
+                self.data["init_soc"] = float(value)
+            elif keyword == "MAX_SOC:":
+                self.data["max_soc"] = float(value)
+            elif keyword == "MIN_SOC_T:":
+                self.data["min_soc_t"] = float(value)
+            elif keyword == "MIN_SOC_D:":
+                self.data["min_soc_d"] = float(value)
+            elif keyword == "CAPACITY_T:":
+                self.data["capacity_t"] = float(value)
+            elif keyword == "CAPACITY_D:":
+                self.data["capacity_d"] = float(value)
+            elif keyword == "CARGO_LIMIT_DRONE:":
+                self.data["cargo_limit_drone"] = float(value)
+            elif keyword == "BATTERY_KWH_T:":
+                self.data["battery_kwh_t"] = float(value)
+            elif keyword == "BATTERY_KWH_D:":
+                self.data["battery_kwh_d"] = float(value)
+            elif keyword == "ENERGY_KWH/KM_T:":
+                self.data["energy_kwh/km_t"] = float(value)
+            elif keyword == "ENERGY_KWH/KM_D:":
+                self.data["energy_kwh/km_d"] = float(value)
+            elif keyword == "LOSISTIC_KWH/KG_T:":
+                self.data["losistic_kwh/kg_t"] = float(value)
+            elif keyword == "LOSISTIC_KWH/KG_D:":
+                self.data["losistic_kwh/kg_d"] = float(value)
+            elif keyword == "SPEED_T:":
+                self.data["speed_t"] = float(value)
+            elif keyword == "SPEED_D:":
+                self.data["speed_d"] = float(value)
+            elif keyword == "NODE_COORD_SECTION":
+                self.section = "NODE_COORD_SECTION"
+            elif keyword == "DEMAND_SECTION":
+                self.section = "DEMAND_SECTION"
+            elif keyword == "LOGISTIC_LOAD_SECTION":
+                self.section = "LOGISTIC_LOAD_SECTION"
+            elif keyword == "AVAILABILITY_LANDING_SPOT_SECTION":
+                self.section = "AVAILABILITY_LANDING_SPOT_SECTION"
+            elif keyword == "CUSTOMER_DRONE_PREFERENCE_SECTION":
+                self.section = "CUSTOMER_DRONE_PREFERENCE_SECTION"
+            elif keyword == "DEPOT_SECTION":
+                self.section = "DEPOT_SECTION"
+            elif keyword == "EDGE_KM_D_FORMAT":
+                self.data["edge_km_d_format"] = value
+            elif keyword == "EDGE_KM_T_FORMAT":
+                self.data["edge_km_t_format"] = value
+            elif keyword == "EDGE_KM_D":
+                self.section = "EDGE_KM_D"
+                self.data["edge_km_d"] = []
+            elif keyword == "EDGE_KM_T":
+                self.section = "EDGE_KM_T"
+                self.data["edge_km_t"] = []
+
+        return self.data
+
+    def parse_section_data(self, line):
+        """
+        multi_modal_data.vrp 파일의 데이터를 섹션별로 알맞게 파싱한 후 data를 저장해주는 함수
+        """
         parts = line.split()
-        if not parts:
-            continue
-        
-        keyword = parts[0]
-        value = " ".join(parts[1:]).strip()
+        if not parts or parts[0] == "EOF":
+            return
+        if self.section == "NODE_COORD_SECTION":
+            self.parse_node_coord(parts)
+        elif self.section == "DEMAND_SECTION":
+            self.parse_demand(parts)
+        elif self.section == "LOGISTIC_LOAD_SECTION":
+            self.parse_logistic_load(parts)
+        elif self.section == "AVAILABILITY_LANDING_SPOT_SECTION":
+            self.parse_availability_landing_spot(parts)
+        elif self.section == "CUSTOMER_DRONE_PREFERENCE_SECTION":
+            self.parse_customer_drone_preference(parts)
+        elif self.section == "DEPOT_SECTION":
+            self.parse_depot(parts)
+        elif self.section == "EDGE_KM_D":
+            self.parse_edge_km_d(parts)
+        elif self.section == "EDGE_KM_T":
+            self.parse_edge_km_t(parts)
 
-        if keyword in ["EDGE_KM_D_TYPE:", "EDGE_KM_T_TYPE:"]:
-            if keyword == "EDGE_KM_D_TYPE:":
-                data["edge_km_d_type"] = value
-            elif keyword == "EDGE_KM_T_TYPE:":
-                data["edge_km_t_type"] = value
-            continue
-
-        if section and keyword != section:
-            parse_section_data(data, section, line)
-            
-        if keyword == "EOF":
-            break
-        elif keyword == "NAME:":
-            data["name"] = value
-        elif keyword == "TYPE:":
-            data["type"] = value
-        elif keyword == "VEHICLES:":
-            data["vehicles"] = int(value)
-        elif keyword == "DIMENSION:":
-            data["dimension"] = int(value)
-        elif keyword == "MAXIMUM_SYSTEM_DURATION:":
-            data["maximum_system_duration"] = int(value)
-        elif keyword == "SERVICETIME:":
-            data["service_time"] = int(value)
-        elif keyword == "MAX_WAITING_TIME:":
-            data["max_waiting_time"] = int(value)
-        elif keyword == "INIT_SOC:":
-            data["init_soc"] = float(value)
-        elif keyword == "MAX_SOC:":
-            data["max_soc"] = float(value)
-        elif keyword == "MIN_SOC_T:":
-            data["min_soc_t"] = float(value)
-        elif keyword == "MIN_SOC_D:":
-            data["min_soc_d"] = float(value)
-        elif keyword == "CAPACITY_T:":
-            data["capacity_t"] = float(value)
-        elif keyword == "CAPACITY_D:":
-            data["capacity_d"] = float(value)
-        elif keyword == "CARGO_LIMIT_DRONE:":
-            data["cargo_limit_drone"] = float(value)
-        elif keyword == "BATTERY_KWH_T:":
-            data["battery_kwh_t"] = float(value)
-        elif keyword == "BATTERY_KWH_D:":
-            data["battery_kwh_d"] = float(value)
-        elif keyword == "ENERGY_KWH/KM_T:":
-            data["energy_kwh/km_t"] = float(value)
-        elif keyword == "ENERGY_KWH/KM_D:":
-            data["energy_kwh/km_d"] = float(value)
-        elif keyword == "LOSISTIC_KWH/KG_T:":
-            data["losistic_kwh/kg_t"] = float(value)
-        elif keyword == "LOSISTIC_KWH/KG_D:":
-            data["losistic_kwh/kg_d"] = float(value)
-        elif keyword == "SPEED_T:":
-            data["speed_t"] = float(value)
-        elif keyword == "SPEED_D:":
-            data["speed_d"] = float(value)
-        elif keyword == "NODE_COORD_SECTION":
-            section = "NODE_COORD_SECTION"
-        elif keyword == "DEMAND_SECTION":
-            section = "DEMAND_SECTION"
-        elif keyword == "LOGISTIC_LOAD_SECTION":
-            section = "LOGISTIC_LOAD_SECTION"
-        elif keyword == "AVAILABILITY_LANDING_SPOT_SECTION":
-            section = "AVAILABILITY_LANDING_SPOT_SECTION"
-        elif keyword == "CUSTOMER_DRONE_PREFERENCE_SECTION":
-            section = "CUSTOMER_DRONE_PREFERENCE_SECTION"
-        elif keyword == "DEPOT_SECTION":
-            section = "DEPOT_SECTION"
-        elif keyword == "EDGE_KM_D_FORMAT":
-            data["edge_km_d_format"] = value
-        elif keyword == "EDGE_KM_T_FORMAT":
-            data["edge_km_t_format"] = value
-        elif keyword == "EDGE_KM_D":
-            section = "EDGE_KM_D"
-            data["edge_km_d"] = []
-        elif keyword == "EDGE_KM_T":
-            section = "EDGE_KM_T"
-            data["edge_km_t"] = []
-
-    return data
-
-def parse_section_data(data, section, line):
-    """
-    multi_modal_data.vrp 파일의 데이터를 섹션별로 알맞게 파싱한 후 data를 저장해주는 함수
-    """
-    parts = line.split()
-    if not parts or parts[0] == "EOF":
-        return
-    if section == "NODE_COORD_SECTION":
+    def parse_node_coord(self, parts):
         try:
             node_id, x, y = int(parts[0]), float(parts[1]), float(parts[2])
-            data["node_coord"][node_id] = (x, y)
+            self.data["node_coord"][node_id] = (x, y)
         except (ValueError, IndexError):
             pass
-    elif section == "DEMAND_SECTION":
+    def parse_demand(self, parts):
         try:
             customer_id, demand = int(parts[0]), int(parts[1])
-            data["demand"][customer_id] = demand
+            self.data["demand"][customer_id] = demand
         except (ValueError, IndexError):
             pass
-    elif section == "LOGISTIC_LOAD_SECTION":
+    def parse_logistic_load(self, parts):
         try:
             customer_id, load = int(parts[0]), int(parts[1])
-            data["logistic_load"][customer_id] = load
+            self.data["logistic_load"][customer_id] = load
         except (ValueError, IndexError):
             pass
-    elif section == "AVAILABILITY_LANDING_SPOT_SECTION":
+    def parse_availability_landing_spot(self, parts):
         try:
             spot_id, availability = int(parts[0]), int(parts[1])
-            data["availability_landing_spot"][spot_id] = availability
+            self.data["availability_landing_spot"][spot_id] = availability
         except (ValueError, IndexError):
             pass
-    elif section == "CUSTOMER_DRONE_PREFERENCE_SECTION":
+    def parse_customer_drone_preference(self, parts):
         try:
             customer_id, preference = int(parts[0]), int(parts[1])
-            data["customer_drone_preference"][customer_id] = preference
+            self.data["customer_drone_preference"][customer_id] = preference
         except (ValueError, IndexError):
             pass
-    elif section == "DEPOT_SECTION":
+    def parse_depot(self, parts):
         try:
-            data["depot"] = int(parts[0])
+            self.data["depot"] = int(parts[0])
         except (ValueError, IndexError):
             pass
-    elif section == "EDGE_KM_D":
+    def parse_edge_km_d(self, parts):
         try:
-            data["edge_km_d"].append(list(map(float, parts)))
+            self.data["edge_km_d"].append(list(map(float, parts)))
         except (ValueError, IndexError):
             pass
-    elif section == "EDGE_KM_T":
+    def parse_edge_km_t(self, parts):
         try:
-            data["edge_km_t"].append(list(map(float, parts)))
+            self.data["edge_km_t"].append(list(map(float, parts)))
         except (ValueError, IndexError):
             pass
+    def parse_edge_km_type(self, keyword, value):
+        if keyword == "EDGE_KM_D_TYPE:":
+            self.data["edge_km_d_type"] = value
+        elif keyword == "EDGE_KM_T_TYPE:":
+            self.data["edge_km_t_type"] = value
 
+    def read_sol_file(self, file_path):
+        """
+        multi_modal_data.sol 파일 읽어와서 파싱 후 데이터 저장해주는 함수
+        """
+        with open(file_path, 'r') as file:
+            lines = file.readlines()
 
-def read_sol_file(file_path):
-    """
-    multi_modal_data.sol 파일 읽어와서 파싱 후 데이터 저장해주는 함수
-    """
-    with open(file_path, 'r') as file:
-        lines = file.readlines()
+        solution = {"routes": [], "cost": None, "vehicle_types": []}
+        current_route = None
 
-    solution = {"routes": [], "cost":None, "vehicle_types":[]}
-    current_route = None
+        for line in lines:
+            if line.startswith("Route"):
+                if current_route is not None:
+                    solution["routes"].append(current_route)
+                route_parts = line.split(":")[1].strip().split()
+                current_route = list(map(int, route_parts))
+            elif line.startswith("Cost"):
+                solution["cost"] = int(line.split()[1])
+            elif line.startswith("Vehicle types"):
+                vehicle_types_str = line.split(":")[1].strip()
+                vehicle_types = [int(char) for char in vehicle_types_str if char.isdigit()]
+                solution["vehicle_types"] = vehicle_types
 
-    for line in lines:
-        if line.startswith("Route"):
-            if current_route is not None:
-                solution["routes"].append(current_route)
-            route_parts = line.split(":")[1].strip().split()
-            current_route = list(map(int, route_parts))
-        elif line.startswith("Cost"):
-            solution["cost"] = int(line.split()[1])
-        elif line.startswith("Vehicle types"):
-            vehicle_types_str = line.split(":")[1].strip()
-            vehicle_types = [int(char) for char in vehicle_types_str if char.isdigit()]
-            solution["vehicle_types"] = vehicle_types
+        if current_route is not None:
+            solution["routes"].append(current_route)
 
-    if current_route is not None:
-        solution["routes"].append(current_route)
+        return solution
 
-    return solution
+file_reader = FileReader()
+data = file_reader.read_vrp_file(vrp_file_path)
+bks = file_reader.read_sol_file(sol_file_path)
 
-
-def plot_solution(data, solution, name="Multi_Modal Solution"):
-    """
-    vrp, sol 파일 기반으로 '좌표정보, 경로순서, cost' 를 시각화해서 plot 해주는 함수 
-    """
-    fig, ax = plt.subplots(figsize=(12, 10))
-    cmap = plt.get_cmap('rainbow')
-
-    for route in solution["routes"]:
-        ax.plot(
-            [data["node_coord"][loc][0] for loc in route],
-            [data["node_coord"][loc][1] for loc in route],
-            color=cmap(np.random.rand()),  
-            marker='.'
-        )
-        
-    kwargs = dict(label="Depot", zorder=3, marker="*", s=750)
-    ax.scatter(*data["node_coord"][data["depot"]], c="tab:red", **kwargs)
-    for node, (x, y) in data["node_coord"].items():
-        ax.annotate(str(node), (x, y), textcoords="offset points", xytext=(0, 5), ha='center')
-    ax.set_title(f"{name}\nTotal Energy Consumption(cost): {solution['cost']} kwh")
-    ax.set_xlabel("X-coordinate")
-    ax.set_ylabel("Y-coordinate")
-    ax.legend(frameon=False, ncol=3)
-    plt.show()
-
-data = read_vrp_file(vrp_file_path)
 print(data)
-bks = read_sol_file(sol_file_path)
 """
 print(bks)
 plot_solution(data, bks, name="Multi_Modal Solution")
 """
 
-def plot_current_solution(data, routes, name="Multi_Modal Solution"):
+class SolutionPlotter:
     """
-    우리가 뽑아낸 routes 딕셔너리 집합과 solution class를 통해서 현재의 cost와 path를 plot 해주는 함수
+    특정 route를 기반으로 location 및 path, cost 정보등을 시각화 해주는 클래스
     """
-    fig, ax = plt.subplots(figsize=(12, 10))
-    cmap = plt.get_cmap('rainbow')
+    def __init__(self, data):
+        self.data = data
 
-    for route_info in routes['route']:
-        vtype = route_info['vtype']
-        vid = route_info['vid']
-        path = route_info['path']
+    def plot_solution(self, solution, name="Multi_Modal Solution(bks)"):
+        """
+        vrp, sol 파일 기반으로 plot 해주는 함수 
+        """
+        fig, ax = plt.subplots(figsize=(12, 10))
+        cmap = plt.get_cmap('rainbow')
 
-        if vtype == 'drone':
-            path = combined_drone_route[0]
+        for route in solution["routes"]:
+            ax.plot(
+                [self.data["node_coord"][loc][0] for loc in route],
+                [self.data["node_coord"][loc][1] for loc in route],
+                color=cmap(np.random.rand()),  
+                marker='.'
+            )
 
-        if vtype == 'drone':
-            color = 'b'
-        elif vtype == 'truck':
-            color = 'g'
-        else:
-            color = 'k'
+        kwargs = dict(label="Depot", zorder=3, marker="*", s=750)
+        ax.scatter(*self.data["node_coord"][self.data["depot"]], c="tab:red", **kwargs)
+        for node, (x, y) in self.data["node_coord"].items():
+            ax.annotate(str(node), (x, y), textcoords="offset points", xytext=(0, 5), ha='center')
+        ax.set_title(f"{name}\nTotal Energy Consumption(cost): {solution['cost']} kwh")
+        ax.set_xlabel("X-coordinate")
+        ax.set_ylabel("Y-coordinate")
+        ax.legend(frameon=False, ncol=3)
+        plt.show()
 
-        ax.plot(
-            [data['node_coord'][loc][0] for loc in path],
-            [data['node_coord'][loc][1] for loc in path],
-            color=color,
-            marker='.',
-            label=f'{vtype} {vid}'
-        )
+    def plot_current_solution(self, routes, name="Multi_Modal Solution"):
+        """
+        우리가 뽑아낸 routes 딕셔너리 집합과 solution class를 통해서 현재의 cost와 path를 plot 해주는 함수
+        """
+        fig, ax = plt.subplots(figsize=(12, 10))
+        cmap = plt.get_cmap('rainbow')
 
-    kwargs = dict(label="Depot", zorder=3, marker="*", s=750)
-    ax.scatter(*data["node_coord"][data["depot"]], c="tab:red", **kwargs)
-    for node, (x, y) in data["node_coord"].items():
-        ax.annotate(str(node), (x, y), textcoords="offset points", xytext=(0, 5), ha='center')
-    ax.set_title(f"{name}\nTotal Energy Consumption(cost): {MultiModalState(routes).objective()} kWh")
-    ax.set_xlabel("X-coordinate")
-    ax.set_ylabel("Y-coordinate")
-    ax.legend(frameon=False, ncol=3)
-    plt.show()
+        for route_info in routes['route']:
+            vtype = route_info['vtype']
+            vid = route_info['vid']
+            path = route_info['path']
+
+            if vtype == 'drone':
+                path = path[0] if isinstance(path, list) else path
+
+            if vtype == 'drone':
+                color = 'b'
+            elif vtype == 'truck':
+                color = 'g'
+            else:
+                color = 'k'
+
+            ax.plot(
+                [self.data['node_coord'][loc][0] for loc in path],
+                [self.data['node_coord'][loc][1] for loc in path],
+                color=color,
+                marker='.',
+                label=f'{vtype} {vid}'
+            )
+
+        kwargs = dict(label="Depot", zorder=3, marker="*", s=750)
+        ax.scatter(*self.data["node_coord"][self.data["depot"]], c="tab:red", **kwargs)
+        for node, (x, y) in self.data["node_coord"].items():
+            ax.annotate(str(node), (x, y), textcoords="offset points", xytext=(0, 5), ha='center')
+        ax.set_title(f"{name}\nTotal Energy Consumption(cost): {MultiModalState(routes).objective()} kWh")
+        ax.set_xlabel("X-coordinate")
+        ax.set_ylabel("Y-coordinate")
+        ax.legend(frameon=False, ncol=3)
+        plt.show()
 
 
-def neighbors_init_truck(customer):
+plotter = SolutionPlotter(data)
+"""
+plotter.plot_solution(bks)
+"""
+
+class TruckRouteInitializer:
     """
-    truck의 distance(km) edge data를 기반으로, 해당 customer의 neighbor 노드 탐색
+    트럭과 드론의 path 분할에 가장 기초가 되는 트럭만의 route를 NN으로 intialize 하는 클래스
     """
-    locations = np.argsort(data["edge_km_t"][customer])
-    return locations[locations != 0]
+    def __init__(self, data):
+        self.data = data
 
-def nearest_neighbor_init_truck():
-    """
-    truck의 capacity 조건을 만족하면서, 가까우면서, 방문한적 없는 노드를 truck_init_route에 순차적으로 append하여 
-    truck_init_routes 결정 -> 이를 통해 이후 RouteGenerator의 input route로 작용
-    """
-    truck_init_routes = []
-    unvisited = set(range(1, data["dimension"]))
-
-    while unvisited:
-        route = [0]  # Start at the depot
-        route_demands = 0
+    def neighbors_init_truck(self, customer):
+        """
+        truck의 distance(km) edge data를 기반으로, 해당 customer의 neighbor 노드 탐색
+        """
+        locations = np.argsort(self.data["edge_km_t"][customer])
+        return locations[locations != 0]
+    
+    def validate_truck_routes(self,truck_routes):
+        """
+        모든 트럭의 경로가 한번씩의 주행으로 수요를 만족하는지 검증하는 함수/ 만족하면 pass, 만족하지 않으면 error 발생
+        """
+        for route in truck_routes:
+            consecutive_zeros = sum(1 for loc in route if loc == 0)
+            if consecutive_zeros > 2:
+                raise ValueError("Unable to satisfy demand with the given number of trucks!!")
+            
+    def nearest_neighbor_init_truck(self):
+        """
+        트럭의 capacity 조건을 만족하면서, 가까우면서, 방문한적 없는 노드를 truck_init_route에 순차적으로 append하여 
+        truck_init_routes 결정 (num_t로 트럭의 fleet 수 고려)-> 이를 통해 딕셔너리 형태로 route를 저장하고, RouteGenerator의 input route로 적용
+        """
+        truck_init_routes = [[] for _ in range(self.data["num_t"])]
+        unvisited = set(range(1, self.data["dimension"]))
 
         while unvisited:
-            # Add the nearest unvisited customer to the route till max capacity
-            current = route[-1]
-            nearest = [nb for nb in neighbors_init_truck(current) if nb in unvisited][0]
+            for i in range(self.data["num_t"]):
+                route = [0] 
+                route_demands = 0
 
-            if route_demands + data["demand"][nearest] > data["capacity_t"]:
-                break
+                while unvisited:
+                    current = route[-1]
+                    neighbors = [nb for nb in self.neighbors_init_truck(current) if nb in unvisited]
+                    nearest = neighbors[0]
 
-            route.append(nearest)
-            unvisited.remove(nearest)
-            route_demands += data["demand"][nearest]
+                    if route_demands + self.data["demand"][nearest] > self.data["capacity_t"]:
+                        break
 
-        customers = route[1:]  # Remove the depot
-        truck_init_routes.append(customers)
+                    route.append(nearest)
+                    unvisited.remove(nearest)
+                    route_demands += self.data["demand"][nearest]
+
+                route.append(0) 
+                truck_init_routes[i].extend(route[0:])
         
-    truck_init_routes = route + [0]
+        self.validate_truck_routes(truck_init_routes)
+        return {
+            'num_t': len(truck_init_routes),
+            'num_d': 0,
+            'route': [{'vtype': 'truck', 'vid': f't{i+1}', 'path': path} for i, path in enumerate(truck_init_routes)]
+        }
 
-    return truck_init_routes
+initializer = TruckRouteInitializer(data)
+nearest_routes_t = initializer.nearest_neighbor_init_truck()
 
-init_routes = {
-    'num_t' : 1,
-    'num_d' : 0,
-    'route': [
-        {'vtype': 'truck', 'vid': 't1', 'path': nearest_neighbor_init_truck()}
-    ]
-}
 
 class RouteGenerator:
     """
@@ -363,9 +419,11 @@ class RouteGenerator:
         TO DO : 현재 k, l, max_drone_mission도 인풋으로 되어있는데 지금 생각해보면 아래의 generate_subroutes()함수로 가야할 것 같음. 나중에 수정할게요
     """
     def __init__(self, route, k, l, max_drone_mission):
-        self.route = route
-        self.depot_end = len(route) - 1
-        self.can_fly = len(route) - k - l
+        self.route = route['route'][0]['path']  
+        # 일단 num_t=1 이라고 가정하고, 한 개의 route만 고려
+        # num_t 가 늘어나면, index 돌면서 여러 self.route 저장하여 사용
+        self.depot_end = len(self.route) - 1
+        self.can_fly = len(self.route) - k - l
         self.max_drone_mission = max_drone_mission
         self.k = k
         self.l = l
@@ -380,7 +438,7 @@ class RouteGenerator:
  
     def generate_subroutes(self):
         """
-            드론이 mission을 수행할 [FLY, SERVICE, CATCH] node를 정의하고(현재는 무작위로 구현),
+            드론이 mission을 수행할 [FLY, SERVICE, CATCH] node를 정의하고(현재는 무작위로 구현) -> 실제로는 heuristic과 feasibility class에서 고려되어야함.
             FLY, SERVICE, CATCH를 만드는 기준은 FLY에서 k만큼 떨어진게 SERVICE, 여기서 l만큼 더 떨어진게 CATCH로 "임의로" 정의했고, 
             TO DO : 이 부분은 k와 l을 랜덤하게 한다던지 해서 휴리스틱적으로 디자인 가능해보임. 지금은 일단 k=2, l=1 이라는 상수로 간단하게 정의함.
             이 과정을 max_drone_mission번 만큼 반복함으로써, 드론의 route에서 드론이 몇 번 비행할지를 통제할 수 있도록 함.
@@ -444,27 +502,23 @@ class RouteGenerator:
         truck_route = [value for index, value in enumerate(self.route) if index not in only_drone] 
         drone_route = [value for index, value in enumerate(self.route) if index not in only_truck]
         drone_mission_info = [value for index, value in enumerate(my_type) if index not in only_truck]
+        
+        combined = np.array([drone_route, drone_mission_info])
+        combined_drone_route = combined.tolist()
+        
+        return { # num_t와 num_d가 바뀜에 따라, 이후에 생성/분할되는 route 수에 따라 동적으로 append 되어야함 
+            'num_t' : 1,
+            'num_d' : 1,
+            'route': [
+                {'vtype': 'drone', 'vid': 'd1', 'path': combined_drone_route},
+                {'vtype': 'truck', 'vid': 't1', 'path': truck_route}
+            ]
+        }
  
-        return truck_route, drone_route, drone_mission_info
- 
-#NN으로 init truck route 정의 후, routegenerator CLASS 생성
-route = nearest_neighbor_init_truck()
-route_generator = RouteGenerator(route, 2, 1, 4)
-truck_route, drone_route, drone_route_info = route_generator.dividing_route()
+#NN으로 init truck route (nearest_routes_t) 정의 후, routegenerator CLASS 적용
+route_generator = RouteGenerator(nearest_routes_t, 2, 1, 4)
+current_route = route_generator.dividing_route()
 
-#드론의 path에 (0/1/2/3/4) 정보를 기억해주기 위해서 2차원 배열을 생성하여 정의
-combined = np.array([drone_route, drone_route_info])
-combined_drone_route = combined.tolist()
-
-#TO DO: routes 딕셔너리 집합에 append 해주는 함수 정의 필요
-routes = {
-    'num_t' : 1,
-    'num_d' : 1,
-    'route': [
-        {'vtype': 'drone', 'vid': 'd1', 'path': combined_drone_route},
-        {'vtype': 'truck', 'vid': 't1', 'path': truck_route}
-    ]
-}
 
 class MultiModalState:
     """
@@ -527,12 +581,22 @@ class MultiModalState:
             
         raise ValueError(f"Solution does not contain customer {customer}.")
 
-print("\nInit route :",nearest_neighbor_init_truck())
-print("\nCurrent routes :", routes)
-print("\nCurrent Objective cost :",MultiModalState(routes).objective())
+print("\nInit route :", nearest_routes_t)
+print("\nCurrent routes :", current_route)
+print("\nCurrent Objective cost :",MultiModalState(current_route).objective())
 
-plot_current_solution(data,init_routes,name="Init Solution(NN/Truck)")
-plot_current_solution(data,routes,name="Multi_Modal Solution")
+plotter.plot_current_solution(nearest_routes_t,name="Init Solution(NN/Truck)")
+plotter.plot_current_solution(current_route,name="Multi_Modal Solution")
+
+
+class Feasibility:
+    """
+    heuristics/ALNS part 에서 우리가 설정한 제약조건을 만족하는지 checking하는 클래스
+    return 형식 : Ture/False
+    """
+    def function():
+        return True,False
+
 
 """
 heuristics/ALNS part 
@@ -627,8 +691,9 @@ def main():
     alns.add_destroy_operator(random_removal)
     alns.add_repair_operator(greedy_repair)
     
-    init = MultiModalState(routes) 
-    #our init : 트럭nn으로 정렬 후 이것저것 따져서 드론,트럭 분할된 거 (?) / original : init = nearest_neighbor()
+    init = MultiModalState(nearest_routes_t) 
+    #our init : 트럭nn으로 정렬
+    #수정 전 original : init = nearest_neighbor() 이 함수 return이 class 였음
     select = RouletteWheel([25, 5, 1, 0], 0.8, 1, 1)
     accept = RecordToRecordTravel.autofit(init.objective(), 0.02, 0, 9000)
     stop = MaxRuntime(60)
@@ -645,6 +710,5 @@ def main():
     _, ax = plt.subplots(figsize=(12, 6))
     result.plot_objectives(ax=ax)
 
-    
 if __name__ == "__main__":
     main()
