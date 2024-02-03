@@ -21,7 +21,7 @@ sol_file_path = r'C:\Users\82102\Desktop\ALNS-master\examples\data\multi_modal_d
 class FileReader:
     """
     multi_modal_data.vrp, multi_modal_data.sol 파일을 파싱하고 읽어오는 클래스
-    TO DO : 새로운 data 입력 및 수정할 떄마다 코드 추가 필요!!
+    TO DO : 새로운 data 입력 및 수정할 때마다 코드 추가 필요!!
     """
     def __init__(self):
         self.data = {
