@@ -1,7 +1,6 @@
-# Multi_Modal solution research
+# Examples
 
-examples/data/multi_modal_data.vrp
-
-examples/data/multi_modal_data.sol
-
-examples/multi_modal.py
+This directory stores a number of example notebooks that are rendered in the
+online documentation. Most of these notebooks depend on data files available 
+in `data/`. New notebooks should also add their dependent data files to the
+`data/` directory.
