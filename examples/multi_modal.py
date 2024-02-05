@@ -15,8 +15,8 @@ from alns.stop import MaxRuntime
 
 SEED = 1234
 
-vrp_file_path = r'C:\Users\82102\Desktop\ALNS-master\examples\data\multi_modal_data.vrp'
-sol_file_path = r'C:\Users\82102\Desktop\ALNS-master\examples\data\multi_modal_data.sol'
+vrp_file_path = r'C:\Users\User\OneDrive\바탕 화면\ALNS-master\ALNS-master\examples\data\multi_modal_data.vrp'
+sol_file_path = r'C:\Users\User\OneDrive\바탕 화면\ALNS-master\ALNS-master\examples\data\multi_modal_data.sol'
 
 class FileReader:
     """
@@ -317,22 +317,39 @@ class SolutionPlotter:
             path = route_info['path']
 
             if vtype == 'drone':
-                path = path[0] if isinstance(path, list) else path
-
-            if vtype == 'drone':
                 color = 'b'
+                path = path if isinstance(path, list) else path[0]
+                loc_getter = lambda loc: loc[0] if isinstance(loc, tuple) else loc
+
             elif vtype == 'truck':
+                path = path if isinstance(path, list) else path[0]
                 color = 'g'
+                loc_getter = lambda loc: loc[0] if isinstance(loc, tuple) else loc
+
             else:
                 color = 'k'
+                loc_getter = lambda loc: loc
 
             ax.plot(
-                [self.data['node_coord'][loc][0] for loc in path],
-                [self.data['node_coord'][loc][1] for loc in path],
+                [self.data['node_coord'][loc_getter(loc)][0] for loc in path],
+                [self.data['node_coord'][loc_getter(loc)][1] for loc in path],
                 color=color,
                 marker='.',
                 label=f'{vtype} {vid}'
             )
+
+
+
+        kwargs = dict(label="Depot", zorder=3, marker="*", s=750)
+        ax.scatter(*self.data["node_coord"][self.data["depot"]], c="tab:red", **kwargs)
+        for node, (x, y) in self.data["node_coord"].items():
+            ax.annotate(str(node), (x, y), textcoords="offset points", xytext=(0, 5), ha='center')
+        ax.set_title(f"{name}\nTotal Energy Consumption(cost): {MultiModalState(routes).objective()} kWh")
+        ax.set_xlabel("X-coordinate")
+        ax.set_ylabel("Y-coordinate")
+        ax.legend(frameon=False, ncol=3)
+        plt.show()
+
 
         kwargs = dict(label="Depot", zorder=3, marker="*", s=750)
         ax.scatter(*self.data["node_coord"][self.data["depot"]], c="tab:red", **kwargs)
@@ -402,6 +419,7 @@ class TruckRouteInitializer:
                 truck_init_routes[i].extend(route[0:])
         
         self.validate_truck_routes(truck_init_routes)
+
         return {
             'num_t': len(truck_init_routes),
             'num_d': 0,
@@ -413,41 +431,46 @@ nearest_routes_t = initializer.nearest_neighbor_init_truck()
 
 
 class RouteGenerator:
-    """
-        하나의 Route로부터 트럭의 Route와 드론의 Route를 만들어주는 클래스.
-        route를 인풋으로 받고, subroute를 만들고, route의 각 노드에 대한 정보를 기억한 후, 이에 따라 트럭의 route와 드론의 route를 추출하도록 한다.
-        TO DO : 현재 k, l, max_drone_mission도 인풋으로 되어있는데 지금 생각해보면 아래의 generate_subroutes()함수로 가야할 것 같음. 나중에 수정할게요
-    """
-    def __init__(self, route, k, l, max_drone_mission):
-        self.route = route['route'][0]['path']  
+   
+    def __init__(self, state, k, l, max_drone_mission):
+        self.routes = state['route']
         # 일단 num_t=1 이라고 가정하고, 한 개의 route만 고려
         # num_t 가 늘어나면, index 돌면서 여러 self.route 저장하여 사용
-        self.depot_end = len(self.route) - 1
-        self.can_fly = len(self.route) - k - l
         self.max_drone_mission = max_drone_mission
         self.k = k
         self.l = l
-        self.FLY = 0
-        self.SERVICE = 0
-        self.CATCH = 0
-        self.only_drone_index = []
-        self.fly_node_index = []
-        self.catch_node_index = []
-        self.subroutes = []
-        self.generate_subroutes()
  
-    def generate_subroutes(self):
-        """
-            드론이 mission을 수행할 [FLY, SERVICE, CATCH] node를 정의하고(현재는 무작위로 구현) -> 실제로는 heuristic과 feasibility class에서 고려되어야함.
-            FLY, SERVICE, CATCH를 만드는 기준은 FLY에서 k만큼 떨어진게 SERVICE, 여기서 l만큼 더 떨어진게 CATCH로 "임의로" 정의했고, 
-            TO DO : 이 부분은 k와 l을 랜덤하게 한다던지 해서 휴리스틱적으로 디자인 가능해보임. 지금은 일단 k=2, l=1 이라는 상수로 간단하게 정의함.
-            이 과정을 max_drone_mission번 만큼 반복함으로써, 드론의 route에서 드론이 몇 번 비행할지를 통제할 수 있도록 함.
-            break 조건문에 의해 굳이 저만큼 max까지 안채워도 반복문에서 벗어날 수 있음.
-
-            이에 따라 전체 Route의 노드가 어떤 상황인지(both, only drone, only truck ...) 저장
-        """
+       
+        # self.generate_subroutes()
+ 
+    def makemakemake(self):
+        empty_list = []
+ 
+        for route_index, route_info in enumerate(self.routes):
+            self.depot_end = len(route_info['path']) - 1
+            # self.can_fly = len(self.routes['path']) - k - l
+            self.SERVICE = 0
+            self.CATCH = 0
+            self.only_drone_index = []
+            self.fly_node_index = []
+            self.catch_node_index = []
+            self.subroutes = []
+            self.generate_subroutes(route_info['path'])
+            diclist = self.dividing_route(self.route_tuples(route_info['path']), route_index)
+           
+            empty_list.extend(diclist)
+ 
+        return {
+            'num_t' : int(len(empty_list)/2),
+            'num_d' : int(len(empty_list)/2),
+            'route' : empty_list
+        }
+ 
+ 
+    def generate_subroutes(self, each_route):
+       
         while len(self.subroutes) < self.max_drone_mission:
-            self.FLY = random.choice(range(self.CATCH, len(self.route)))
+            self.FLY = random.choice(range(self.CATCH, len(each_route)))
             self.SERVICE = self.FLY + self.k
             self.CATCH = self.SERVICE + self.l
             if self.CATCH > self.depot_end:
@@ -457,18 +480,10 @@ class RouteGenerator:
             self.fly_node_index.append(self.FLY)
             self.only_drone_index.append(self.SERVICE)
             self.catch_node_index.append(self.CATCH)
-
-    def get_visit_type(self):
-        """
-            전체 Route의 노드가 어떤 상황인지(both, only drone, only truck ... ) 저장하는 리스트 생성
-            subroute를 만들며 저장했던 fly_node_index, catch_node_index, only_drone_index 활용.
-            TO DO : 이 index들을 이 함수의 input으로 놓아야 더 깔끔한 함수인가? 고민해봐야겠다...
-        Returns:
-            _type_: 리스트
-            route와 length가 같고, 이 리스트의 value가 곧 route의 상황 반영 
-            이 visit_type 리스트 정보를 이용하여 트럭의 route와 드론의 route 추출할 것임
-        """
-        visit_type = [0] * len(self.route)
+ 
+    def route_tuples(self, each_route):
+       
+        visit_type = [0] * len(each_route)
         visit_type = [
             1 if index in self.fly_node_index else
             2 if index in self.only_drone_index else
@@ -480,44 +495,22 @@ class RouteGenerator:
             for i in subroute[1:-1] if i not in self.only_drone_index
         ]:
             visit_type[i] = 4
-        return visit_type
+        return list(zip(each_route, visit_type))
  
-    def dividing_route(self):
-        """_summary_
-            위의 정보들을 기반으로 트럭의 route, 드론의 route를 추출한다. 이때 드론 Objective 계산시 편의를 위해 드론 route만의 visit_type 리스트도 저장해준다.
-        Returns:
-            _type_: 리스트
-            truck_route : 전체 route에서 드론이 방문한 노드를 제외한 route.
-            drone_route : 전체 route에서 트럭만 방문한 노드를 제외한 route.
-            drone_mission_info : drone_route의 visit_type를 따로 저장 -> 드론이 미션 수행했을 때의 cost, 드론이 트럭에 업혀있을 때의 충전 등을 한꺼번에 고려 가능
-        """
-        my_type = self.get_visit_type()
-        only_truck = [index for index, value in enumerate(my_type) if value == 4] #삭제가능
-        only_drone = [index for index, value in enumerate(my_type) if value == 2] #삭제가능
-        
-        # [(depot, 0), (1, 1), (4, 1), (5,3), (depot, 0)]
-        # [value for index, value in enumerate(self.route) if value[1] != 2]
-
-        # truck_route = [value for index, value in enumerate(self.route) if visit_type[index] != 2]
-        truck_route = [value for index, value in enumerate(self.route) if index not in only_drone] 
-        drone_route = [value for index, value in enumerate(self.route) if index not in only_truck]
-        drone_mission_info = [value for index, value in enumerate(my_type) if index not in only_truck]
-        
-        combined = np.array([drone_route, drone_mission_info])
-        combined_drone_route = combined.tolist()
-        
-        return { # num_t와 num_d가 바뀜에 따라, 이후에 생성/분할되는 route 수에 따라 동적으로 append 되어야함 
-            'num_t' : 1,
-            'num_d' : 1,
-            'route': [
-                {'vtype': 'drone', 'vid': 'd1', 'path': combined_drone_route},
-                {'vtype': 'truck', 'vid': 't1', 'path': truck_route}
-            ]
-        }
+    def dividing_route(self, route_with_info, route_index):
+       
+        truck_route = [value for value in route_with_info if value[1] != 2]
+        drone_route = [value for value in route_with_info if value[1] != 4]
+ 
+        return [
+            {'vtype': 'drone', 'vid': 'd'+ str(route_index + 1), 'path': drone_route},
+            {'vtype': 'truck', 'vid': 't'+ str(route_index + 1), 'path': truck_route},
+        ]
  
 #NN으로 init truck route (nearest_routes_t) 정의 후, routegenerator CLASS 적용
+    
 route_generator = RouteGenerator(nearest_routes_t, 2, 1, 4)
-current_route = route_generator.dividing_route()
+current_route = route_generator.makemakemake()
 
 
 class MultiModalState:
@@ -526,14 +519,12 @@ class MultiModalState:
     output: objective cost value / 특정 customer node를 포함한 route  
     """
 
-    def __init__(self, routes, unassigned=None):
+    def __init__(self, routes):
         self.routes = routes
-        self.unassigned = unassigned if unassigned is not None else []
 
     def copy(self):
         return MultiModalState(
-            copy.deepcopy(self.routes),
-            unassigned=self.unassigned.copy()
+            copy.deepcopy(self.routes)
         )
 
     def objective(self):
@@ -549,23 +540,28 @@ class MultiModalState:
             vtype = route['vtype']
             path = route['path']
 
-            if vtype == 'truck': #트럭은 처음부터 마지막까지 전체 edge를 모두 고려해준다는 알고리즘
-                for i in range(len(path) - 1): 
-                    edge_weight = data["edge_km_t"][path[i]][path[i+1]]
+            if vtype == 'truck':
+                for i in range(len(path) - 1):
+                    loc_from = path[i][0] if isinstance(path[i], tuple) else path[i]
+                    loc_to = path[i+1][0] if isinstance(path[i+1], tuple) else path[i+1]
+
+                    edge_weight = data["edge_km_t"][loc_from][loc_to]
                     energy_consumption += edge_weight * data["energy_kwh/km_t"]
 
+ 
             elif vtype == 'drone': #드론은 1(fly)부터 3(catch)까지만의 edge를 반복적으로 고려해준다는 알고리즘
-                start_index = None 
-                for j in range(len(path[0]) - 1):
-                    if path[1][j] == 1:
-                        start_index = j 
-                    elif path[1][j] == 3 and start_index is not None:
+                start_index = None
+                for j in range(len(path)):
+                    if path[j][1] == 1:
+                        start_index = j
+                    elif path[j][1] == 3 and start_index is not None:
                         for k in range(start_index, j):
-                            edge_weight = data["edge_km_d"][path[0][k]][path[0][k+1]]
+                            edge_weight = data["edge_km_d"][path[k][0]][path[k+1][0]]
                             energy_consumption += edge_weight * data["energy_kwh/km_d"]
                         start_index = None
-
+ 
         return energy_consumption
+
     
     @property
     def cost(self):
@@ -582,6 +578,7 @@ class MultiModalState:
                 return route
             
         raise ValueError(f"Solution does not contain customer {customer}.")
+    
 
 print("\nInit route :", nearest_routes_t)
 print("\nCurrent routes :", current_route)
@@ -591,50 +588,72 @@ plotter.plot_current_solution(nearest_routes_t,name="Init Solution(NN/Truck)")
 plotter.plot_current_solution(current_route,name="Multi_Modal Solution")
 
 
-class Feasibility:
-    """
-    heuristics/ALNS part 에서 우리가 설정한 제약조건을 만족하는지 checking하는 클래스
-    return 형식 : Ture/False
-    """
-    def function():
-        return True,False
+degree_of_destruction = 0.3
+customers_to_remove = int((data["dimension"] - 1) * degree_of_destruction)
+rnd_state = np.random.RandomState(None)
 
+class Destroy:
+    def __init__(self, routes, unassigned=None):
+        self.routes = routes
+        self.unassigned = unassigned if unassigned is not None else []
+    
+    def copy(self):
+        return Destroy(
+                copy.deepcopy(self.routes),
+                unassigned=self.unassigned.copy()
+            )
+    
+    def __str__(self):
+        return str({"routes": self.routes, "unassigned": self.unassigned})
+    
+    def random_removal(self, rnd_state):
+        """
+        Removes a number of randomly selected customers from the passed-in solution.
+        """
+        destroyed = self.copy()
+
+        for customer in rnd_state.choice(
+            range(1, data["dimension"]), customers_to_remove, replace=False
+        ):
+            destroyed.unassigned.append(customer)
+            for route in destroyed.routes['route']:
+                if 'vtype' in route and route['vtype'] == 'drone':
+                    for i, point in enumerate(route['path']):
+
+                        if point[0]==customer and point[1]==1:
+                            del route['path'][i]
+                            if route['path'][i+1][1] == 2:
+                                del route['path'][i+1]
+
+                        elif point[0]==customer and point[1]==3:
+                            del route['path'][i]
+                            if route['path'][i-1][1] == 2:
+                                del route['path'][i-1]
+
+                        elif point[0]==customer and point[1]==2:
+                            del route['path'][i]
+                        
+                        elif point[0] == customer and point[1] == 0:
+                            del route['path'][i]
+                    
+
+                elif 'vtype' in route and route['vtype'] == 'truck':
+                    route['path'] = [point for point in route['path'] if point[0] != customer]
+
+        return destroyed
+
+Debug = Destroy(current_route)
+print("destroy input :", Debug.routes)
+
+destroyed_route = Debug.random_removal(rnd_state)
+print("Routes after random removal:", destroyed_route)
 
 """
-heuristics/ALNS part 
-"""        
-degree_of_destruction = 0.05
-customers_to_remove = int((data["dimension"] - 1) * degree_of_destruction)
-
-def random_removal(state, rnd_state):
-    """
-    Removes a number of randomly selected customers from the passed-in solution.
-    """
-    destroyed = state.copy()
-
-    for customer in rnd_state.choice(
-        range(1, data["dimension"]), customers_to_remove, replace=False
-    ):
-        destroyed.unassigned.append(customer)
-        route = destroyed.find_route(customer)
-        route.remove(customer)
-
-    return remove_empty_routes(destroyed)
-
-
-def remove_empty_routes(state):
-    """
-    Remove empty routes after applying the destroy operator.
-    """
-    state.routes = [route for route in state.routes if len(route) != 0]
-    return state
-
-
 def greedy_repair(state, rnd_state):
-    """
-    Inserts the unassigned customers in the best route. If there are no
-    feasible insertions, then a new route is created.
-    """
+    
+    #Inserts the unassigned customers in the best route. If there are no
+    #feasible insertions, then a new route is created.
+
     rnd_state.shuffle(state.unassigned)
 
     while len(state.unassigned) != 0:
@@ -650,10 +669,10 @@ def greedy_repair(state, rnd_state):
 
 
 def best_insert(customer, state):
-    """
-    Finds the best feasible route and insertion idx for the customer.
-    Return (None, None) if no feasible route insertions are found.
-    """
+    
+    #Finds the best feasible route and insertion idx for the customer.
+    #Return (None, None) if no feasible route insertions are found.
+    
     best_cost, best_route, best_idx = None, None, None
 
     for route in state.routes:
@@ -669,17 +688,17 @@ def best_insert(customer, state):
 
 
 def can_insert(customer, route):
-    """
-    Checks if inserting customer does not exceed vehicle capacity.
-    """
+    
+    #Checks if inserting customer does not exceed vehicle capacity.
+    
     total = data["demand"][route].sum() + data["demand"][customer]
     return total <= data["capacity"]
 
 
 def insert_cost(customer, route, idx):
-    """
-    Computes the insertion cost for inserting customer in route at idx.
-    """
+    
+    #Computes the insertion cost for inserting customer in route at idx.
+    
     dist = data["edge_weight"]
     pred = 0 if idx == 0 else route[idx - 1]
     succ = 0 if idx == len(route) else route[idx]
@@ -687,6 +706,20 @@ def insert_cost(customer, route, idx):
     # Increase in cost of adding customer, minus cost of removing old edge
     return dist[pred][customer] + dist[customer][succ] - dist[pred][succ]
 
+
+
+class Feasibility:
+    
+    #heuristics/ALNS part 에서 우리가 설정한 제약조건을 만족하는지 checking하는 클래스
+    #return 형식 : Ture/False
+    
+    def function():
+        return True,False
+
+
+
+heuristics/ALNS part 
+   
 
 def main():
     alns = ALNS(rnd.RandomState(SEED))
@@ -714,3 +747,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+"""
