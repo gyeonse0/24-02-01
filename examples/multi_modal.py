@@ -41,25 +41,17 @@ plotter = SolutionPlotter(data)
 plotter.plot_solution(bks)
 """
 
-### TruckRouteInitializer 클래스 instance
-initializer = TruckRouteInitializer(data)
-
-### only truck opt route 정보 출력 debugging code
-nearest_routes_t = initializer.nearest_neighbor_init_truck()
-print("\nInit route :", nearest_routes_t)
-
-### RouteGenerator 클래스 instance
-route_generator = RouteGenerator(nearest_routes_t, 2, 1, 4)
-
+### RouteInitializer 클래스 instance 
+initializer = RouteInitializer(data, k=2, l=1, max_drone_mission=4)
+initial_solution = initializer.nearest_neighbor_init_truck()
+current_route = initializer.makemakemake(initial_solution)
 
 ### currnet route 정보 출력 debugging code
-current_route = route_generator.makemakemake()
 print("\nCurrent routes :", current_route)
 print("\nCurrent Objective cost :",MultiModalState(current_route).objective())
 
-
 ### route 플러팅 시각화 debugging code
-plotter.plot_current_solution(nearest_routes_t,name="Init Solution(NN/Truck)")
+plotter.plot_current_solution(initial_solution,name="Init Solution(NN/Truck)")
 plotter.plot_current_solution(current_route,name="Multi_Modal Solution")
 
 
