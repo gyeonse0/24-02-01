@@ -159,4 +159,59 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+class Repair:
+    """
+    1. 빵꾸난 부분 truck route로 메꾸기
+    2. truck route로 채워서 만든 전체 state에 대하여 makemakemake실행
+    """
+    def greedy_repair(self, state, rnd_state):   
+        #Inserts the unassigned customers in the best route. If there are no
+        #feasible insertions, then a new route is created.
+
+        rnd_state.shuffle(state.unassigned)
+
+        while len(state.unassigned) != 0:
+            customer = state.unassigned.pop()
+            route, idx = self.best_insert(customer, state)
+
+            if route is not None:
+                route.insert(idx, customer)
+            else:
+                state.routes.append([customer])
+
+        return state
+    
+    def best_insert(self, customer, state):    
+        #Finds the best feasible route and insertion idx for the customer.
+        #Return (None, None) if no feasible route insertions are found.
+        
+        best_cost, best_route, best_idx = None, None, None
+
+        for route in state.routes:
+            for idx in range(len(route) + 1):
+
+                if self.can_insert(customer, route):
+                    cost = self.insert_cost(customer, route, idx)
+
+                    if best_cost is None or cost < best_cost:
+                        best_cost, best_route, best_idx = cost, route, idx
+
+        return best_route, best_idx
+    
+    def can_insert(customer, route):
+        #Checks if inserting customer does not exceed vehicle capacity.
+        
+        total = data["demand"][route].sum() + data["demand"][customer]
+        return total <= data["capacity"]
+    
+    def insert_cost(customer, route, idx):
+        #Computes the insertion cost for inserting customer in route at idx.
+        
+        dist = data["edge_weight"]
+        pred = 0 if idx == 0 else route[idx - 1]
+        succ = 0 if idx == len(route) else route[idx]
+
+        # Increase in cost of adding customer, minus cost of removing old edge
+        return dist[pred][customer] + dist[customer][succ] - dist[pred][succ]
 """
