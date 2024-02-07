@@ -10,7 +10,7 @@ from typing import List
 
 from FileReader import *
 from SolutionPlotter import *
-from TruckRouteInitializer import *
+from RouteInitializer import *
 from RouteGenerator import *
 from Destroy import *
 
@@ -21,8 +21,16 @@ from alns.stop import MaxRuntime
 
 SEED = 1234
 
-vrp_file_path = r'C:\Users\User\OneDrive\바탕 화면\ALNS-master\ALNS-master\examples\data\multi_modal_data.vrp'
-sol_file_path = r'C:\Users\User\OneDrive\바탕 화면\ALNS-master\ALNS-master\examples\data\multi_modal_data.sol'
+globals
+IDLE = 0
+FLY = 1
+ONLY_DRONE = 2
+CATCH = 3
+ONLY_TRUCK = 4
+UNASSIGNED = 5
+
+vrp_file_path = r'C:\Users\82102\Desktop\ALNS-master\examples\data\multi_modal_data.vrp'
+sol_file_path = r'C:\Users\82102\Desktop\ALNS-master\examples\data\multi_modal_data.sol'
 
 file_reader = FileReader()
 data = file_reader.read_vrp_file(vrp_file_path)
@@ -56,11 +64,14 @@ plotter.plot_current_solution(current_route,name="Multi_Modal Solution")
 
 
 ### Destroy 클래스 instance
-Debug = Destroy(current_route)
+destroyer = Destroy(current_route)
 
 ### Destroy 클래스 debugging code
-destroyed_route = Debug.random_removal(rnd_state)
-print("Routes after random removal:", destroyed_route)
+destroyed_route = destroyer.random_removal(rnd_state)
+print("\nAfter random removal:", destroyed_route)
+
+### Destroy 플러팅 시각화 debugging code
+plotter.plot_current_solution(destroyed_route,name="Random Removal")
 
 
 """
@@ -161,10 +172,6 @@ if __name__ == "__main__":
     main()
 
 class Repair:
-    """
-    1. 빵꾸난 부분 truck route로 메꾸기
-    2. truck route로 채워서 만든 전체 state에 대하여 makemakemake실행
-    """
     def greedy_repair(self, state, rnd_state):   
         #Inserts the unassigned customers in the best route. If there are no
         #feasible insertions, then a new route is created.
