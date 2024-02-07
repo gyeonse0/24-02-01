@@ -58,10 +58,10 @@ class Destroy:
         트럭 1 4 1 4 3 의 경우 다시 생각
 
         트럭의 path일 경우,
-        1. 파괴 대상 노드가 fly(1) 노드에 해당하면 해당 노드를 제거함과 동시에 그에 종속된 catch(3) 노드는 단순 idle(0) 역할로 바뀐다.
-        또한, 그 중간에 only Truck(4) 노드가 있으면 이 또한 단순 idle(0) 역할로 바뀐다.
-        2. 파괴 대상 노드가 catch(3) 노드에 해당하면 해당 노드를 제거함과 동시에 그에 종속된 fly(1) 노드는 단순 idle(0) 역할로 바뀐다.
-        또한, 그 중간에 only Truck(4) 노드가 있으면 이 또한 단순 idle(0) 역할로 바뀐다.
+        1. 파괴 대상 노드가 fly(1) 노드에 해당하면 해당 노드를 제거함과 동시에 그에 종속된 catch(3) 노드는 단순 idel(0) 역할로 바뀐다.
+        또한, 그 중간에 only Truck(4) 노드가 있으면 이 또한 단순 idel(0) 역할로 바뀐다.
+        2. 파괴 대상 노드가 catch(3) 노드에 해당하면 해당 노드를 제거함과 동시에 그에 종속된 fly(1) 노드는 단순 idel(0) 역할로 바뀐다.
+        또한, 그 중간에 only Truck(4) 노드가 있으면 이 또한 단순 idel(0) 역할로 바뀐다.
         3. 파괴 대상 노드가 idel(0) 노드에 해당한다면, 해당 노드만 제거를 수행한다.
         4. 파괴 대상 노드가 only Truck(4) 노드에 해당한다면, 해당 노드만 제거를 수행한다.
 
@@ -83,8 +83,7 @@ class Destroy:
         truck_path = None
 
         for customer in rnd_state.choice(
-            range(1, data["dimension"]), customers_to_remove, replace=False
-        ):
+            range(1, data["dimension"]), customers_to_remove, replace=False):
             
             for route in destroyed.routes['route']:
                 if 'vtype' in route and route['vtype'] == 'drone':
@@ -124,7 +123,7 @@ class Destroy:
                                     if route['path'][i+2][1] != UNASSIGNED:
                                         route['path'][i+2] = (route['path'][i+2][0], IDLE)
                                         
-                        else:
+                        elif i >= 2:
                             if route['path'][i][0] == customer:
                                 if route['path'][i][1] == FLY:
                                     route['path'][i] = (route['path'][i][0], UNASSIGNED)
@@ -150,9 +149,12 @@ class Destroy:
                             if (route['path'][i][0], route['path'][i][1]) not in destroyed.unassigned:
                                 destroyed.unassigned.append((route['path'][i][0], route['path'][i][1]))
                                 
-                    drone_path = [point for point in route['path'] if point[1] != UNASSIGNED]
+                    route['path'] = [point for point in route['path'] if point[1] != UNASSIGNED]
+                    
+                    drone_path=route['path']
 
 
+                # 트럭의 경우 
                 elif 'vtype' in route and route['vtype'] == 'truck':
                     for i in range(1, len(route["path"]) - 1):
                         if route['path'][i][0] == customer:
@@ -235,52 +237,58 @@ class Destroy:
                     for i in range(1, len(truck_path)-1):
                         for j in range(1, len(drone_path)-1):
                             if truck_path[i][0] not in [node[0] for node in drone_path]:
-                                if truck_path[i][1] == 0:  # 트럭 경로의 노드가 드론 경로에 없고, visit type이 0인 경우
+                                if truck_path[i][1] == IDLE:  # 트럭 경로의 노드가 드론 경로에 없고, visit type이 0인 경우
                                 # 트럭 경로의 이전 노드와 동일한 드론 경로의 노드를 찾고, 그 다음 위치에 삽입
                                     if truck_path[i-1][0] == drone_path[j][0]:
-                                        drone_path.insert(j+1, truck_path[i]) 
-                                        break
+                                        for k in range(0,len(destroyed.unassigned)):
+                                            if truck_path[i][0] != destroyed.unassigned[k][0]:
+                                                drone_path.insert(j+1, truck_path[i]) 
+                                                break
                         else:
                             continue
-                        break 
                 
                 if 'vtype' in route and route['vtype'] == 'drone': 
                     route['path'] = drone_path
                     
                 elif 'vtype' in route and route['vtype'] == 'truck': 
-                    route['path'] = truck_path       
+                    route['path'] = truck_path      
                     
-            # nearest_neighbor_truck_path와 동일한 순서로 결과를 출력하기 위해 초기화된 트럭 경로 가져오기
-            nearest_neighbor_truck_path = initial_solution['route'][0]['path']
-
-            # 각 경로의 노드 이름을 가져와서 해당 노드가 어디에 속하는지 확인하고 튜플로 변환하여 filled_path 리스트에 추가
-            filled_path = []
+        one_path = []
+        for i in range(len(destroyed.routes['route']) // 2):
+            nearest_neighbor_truck_path = initial_solution['route'][i]['path']
+            filled_path=[]
+            # 드론과 트럭 경로 각각 가져오기
+            drone_route = destroyed.routes['route'][2 * i]['path']
+            truck_route = destroyed.routes['route'][2 * i + 1]['path']
+            
+            # 파괴된 경로의 노드 정보 추가
+            for unassigned_node, unassigned_value in destroyed.unassigned:
+                if unassigned_node not in [point[0] for point in filled_path]:
+                    filled_path.append((unassigned_node, unassigned_value))
+            
+            # 드론 경로의 노드 정보 추가
+            for node, value in drone_route[:-1]:
+                if node not in [point[0] for point in filled_path]:
+                    filled_path.append((node, value))
+            
+            # 트럭 경로의 노드 정보 추가
+            for node, value in truck_route[:-1]:
+                if node not in [point[0] for point in filled_path]:
+                    filled_path.append((node, value))
+            
+            # nearest_neighbor_truck_path에 속하지 않은 노드 정보 추가
             for node in nearest_neighbor_truck_path:
-                
-                for i in range(0, len(destroyed.unassigned)):
-                    if node == destroyed.unassigned[i][0]:
-                        if node not in [point[0] for point in filled_path]:
-                            filled_path.append((node, destroyed.unassigned[i][1]))
-                            
-                # 노드가 드론 경로에 있는지 확인
-                for i in range(0, len(drone_path)-1):
-                    if node == drone_path[i][0]:
-                        if node not in [point[0] for point in filled_path]:
-                            filled_path.append((node, drone_path[i][1]))
-                
-                for i in range(0, len(truck_path)-1):
-                    if node == truck_path[i][0]:
-                        if node not in [point[0] for point in filled_path]:
-                            filled_path.append((node, truck_path[i][1]))
+                if node not in [point[0] for point in filled_path]:
+                    filled_path.append((node, UNASSIGNED))
 
-            # 결과를 nearest_neighbor_truck_path와 동일한 순서로 출력
-            result_path = [point for point in filled_path if point[0] in nearest_neighbor_truck_path]
-            result_path = result_path[:-1]
-            result_path.append(drone_path[-1])
-            result_path = [point for point in result_path if point[1] != UNASSIGNED]
-
+            #결과를 nearest_neighbor_truck_path와 동일한 순서로 출력
+            filled_path = [point for point in filled_path if point[0] in nearest_neighbor_truck_path]
+            filled_path.append(drone_route[-1])
+            filled_path = [point for point in filled_path if point[1] != UNASSIGNED]
+            one_path.append(filled_path)
+            
         return {'num_t': destroyed.routes['num_t'], 
                 'num_d': destroyed.routes['num_d'], 
                 'route': destroyed.routes['route'], 
                 'unassigned': destroyed.unassigned,
-                'one_path':result_path}
+                'one_path': one_path} 
