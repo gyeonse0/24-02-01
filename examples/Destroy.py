@@ -39,10 +39,7 @@ class Destroy:
                 copy.deepcopy(self.routes),
                 unassigned=self.unassigned.copy()
             )
-    
-    def __str__(self):
-        return str({"routes": self.routes, "unassigned": self.unassigned})
-    
+
     def random_removal(self, rnd_state):
         """
         내가 설정한 파괴 상수에 따라 파괴할 고객의 수가 결정되고, 그에 따라 랜덤으로 고객노드를 제거한다.
@@ -73,6 +70,8 @@ class Destroy:
 
         visit_type을 각각의 상황별로 모두 정의해준 다음에, 5 : UNASSIGNED 정보를 바탕으로 각각의 경로에서 노드 제거 및 종속된 다른 노드들의 visit_type 수정, 그리고 unassigned 튜플리스트 생성
         이를 바탕으로 repair 메소드 수행
+        
+        truck과 drone이 vid 식별자/ 즉, mother이 같은 것 끼리 pair로 비교해주어야히함
 
         """
         destroyed = self.copy()
@@ -225,4 +224,7 @@ class Destroy:
            
                     route['path'] = [point for point in route['path'] if point[1] != UNASSIGNED]
 
-        return destroyed
+        return {'num_t': destroyed.routes['num_t'], 
+                'num_d': destroyed.routes['num_d'], 
+                'route': destroyed.routes['route'], 
+                'unassigned': destroyed.unassigned}
