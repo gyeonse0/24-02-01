@@ -52,6 +52,9 @@ plotter.plot_solution(bks)
 ### RouteInitializer 클래스 instance 
 initializer = RouteInitializer(data, k=2, l=1, max_drone_mission=4)
 initial_solution = initializer.nearest_neighbor_init_truck()
+
+print("\nInital only truck :", initial_solution)
+
 current_route = initializer.makemakemake(initial_solution)
 
 ### currnet route 정보 출력 debugging code
