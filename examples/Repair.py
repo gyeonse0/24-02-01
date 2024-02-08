@@ -1,5 +1,4 @@
 from RouteGenerator import *
-from RouteInitializer import *
 from FileReader import *
 
 file_reader = FileReader()
@@ -15,11 +14,10 @@ class Repair():
     2. 트럭으로 채워서 만든 전체 state에 대하여 random한 sortie를 새로 계산
     """
     
-    
     def greedy_truck_random_repair(self, state, rnd_state):
         """
-        Inserts the unassigned customers in the best route. If there are no
-        feasible insertions, then a new route is created.
+        Inserts the unassigned customers in the best route.
+        If there are no feasible insertions, then a new route is created.
         """
 
         rnd_state.shuffle(state['unassigned'])
@@ -28,7 +26,6 @@ class Repair():
             customer = state['unassigned'].pop() # customer는 튜플, (customer_number, 5)형태
             route, idx = self.best_insert(customer, state) # state는 destroyed_route를 받아올 것
             # 어떤 route에 들어가야할지, 그리고 그 route의 몇 번째 index에 들어가야할지를 return
-
             # 여기서의 route는 destroyed_routes['one_path'] 리스트 안에서 'path'
 
             if route is not None:
@@ -52,7 +49,7 @@ class Repair():
 
         for route in state['one_path']: # 여기서의 local route는 'route'리스트 for문 돌아가는 {} 딕셔너리임
                 
-            for idx in range(len(route) + 1): # 여기에 + 1을 해준 이유?
+            for idx in range(len(route) + 1): 
 
                 if self.can_insert(customer, route): 
                     cost = self.insert_cost(customer, route, idx)
