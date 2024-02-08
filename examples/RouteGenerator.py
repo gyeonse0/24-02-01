@@ -1,13 +1,4 @@
-import copy
 import random
-from types import SimpleNamespace
-import vrplib 
-import matplotlib
-import matplotlib.pyplot as plt
-import numpy as np
-import numpy.random as rnd
-from typing import List
-
 
 def extract_first_elements(path):
     return [x[0] for x in path]
