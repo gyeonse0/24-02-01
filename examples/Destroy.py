@@ -71,13 +71,11 @@ class Destroy:
         3 : CATCH
         4 : ONLY_TRUCK
         NULL : NULL -> 새로추가 !! 'destroy 된 노드 이자, repair 대상 노드로 작용'
-
-        visit_type을 각각의 상황별로 모두 정의해준 다음에, 5 : UNASSIGNED 정보를 바탕으로 각각의 경로에서 노드 제거 및 종속된 다른 노드들의 visit_type 수정, 그리고 unassigned 튜플리스트 생성
-        이를 바탕으로 repair 메소드 수행
         
         truck과 drone이 vid 식별자/ 즉, mother이 같은 것 끼리 pair로 비교해주어야히함
 
         DESTROY에서 다 NULL(초기화)을 만들어주고, REPAIR에서 VISIT_TYPE 업데이트 !!
+        -> DESTROY 했는데 드론 경로가 살아있어도 다 무시하고 그냥 0 으로 ?
         
         연구 하다가 드론이 두곳 이상 서비스 가능하다고 열어두고 생각해보기 !!
 
