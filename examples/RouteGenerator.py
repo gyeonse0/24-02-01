@@ -9,84 +9,6 @@ import numpy.random as rnd
 from typing import List
 
 
-def make(self):
-    """
-    리스트 오브 튜플을 받아 makemake하기
-    """
-    empty_list = []
-
-    for route_index, route_info in enumerate(self.routes):
-        self.depot_end = len(route_info['path']) - 1
-        # self.can_fly = len(self.routes['path']) - k - l
-        self.SERVICE = 0
-        self.CATCH = 0
-        self.only_drone_index = []
-        self.fly_node_index = []
-        self.catch_node_index = []
-        self.subroutes = []
-        self.generate_subroutes(self.extract_first_elements(route_info['path']))
-        
-        diclist = {'vtype': 'truck', 'vid': 't'+ str(route_index + 1), 'path': self.route_tuples(route_info['path'])}
-        
-        empty_list.append(diclist)
-
-    return {
-        'num_t' : int(len(empty_list)/2),
-        'num_d' : int(len(empty_list)/2),
-        'route' : empty_list
-    }
-
-def makemake(self):
-    """
-    단순히 정보를 가진 튜플만 생성하는 함수
-    """
-    empty_list = []
-
-    for route_index, route_info in enumerate(self.routes):
-        self.depot_end = len(route_info['path']) - 1
-        # self.can_fly = len(self.routes['path']) - k - l
-        self.SERVICE = 0
-        self.CATCH = 0
-        self.only_drone_index = []
-        self.fly_node_index = []
-        self.catch_node_index = []
-        self.subroutes = []
-        self.generate_subroutes(route_info['path'])
-        
-        diclist = {'vtype': 'truck', 'vid': 't'+ str(route_index + 1), 'path': self.route_tuples(route_info['path'])}
-        
-        empty_list.append(diclist)
-
-    return {
-        'num_t' : int(len(empty_list)/2),
-        'num_d' : int(len(empty_list)/2),
-        'route' : empty_list
-    }
-
-def makemakemake(self):
-    empty_list = []
-
-    for route_index, route_info in enumerate(self.routes):
-        self.depot_end = len(route_info['path']) - 1
-        # self.can_fly = len(self.routes['path']) - k - l
-        self.SERVICE = 0
-        self.CATCH = 0
-        self.only_drone_index = []
-        self.fly_node_index = []
-        self.catch_node_index = []
-        self.subroutes = []
-        self.generate_subroutes(route_info['path'])
-        diclist = self.dividing_route(self.route_tuples(route_info['path']), route_index)
-        
-        empty_list.extend(diclist)
-
-    return {
-        'num_t' : int(len(empty_list)/2),
-        'num_d' : int(len(empty_list)/2),
-        'route' : empty_list
-    }
-
-
 def extract_first_elements(path):
     return [x[0] for x in path]
 
@@ -97,12 +19,6 @@ def find_random_sortie(routes):
 max_drone_mission = 4
 k = 2
 l = 1
-SERVICE = 0
-CATCH = 0
-only_drone_index = []
-fly_node_index = []
-catch_node_index = []
-subroutes = []
 
 def generate_subroutes(each_route):
     SERVICE = 0
@@ -153,3 +69,80 @@ def apply_dividing_route_to_routes(routes):
     for route_index, route_with_info in enumerate(routes):
         result.extend(dividing_route(route_with_info, route_index))
     return result
+
+"""
+
+def make(self):
+    #리스트 오브 튜플을 받아 makemake하기
+    empty_list = []
+
+    for route_index, route_info in enumerate(self.routes):
+        self.depot_end = len(route_info['path']) - 1
+        # self.can_fly = len(self.routes['path']) - k - l
+        self.SERVICE = 0
+        self.CATCH = 0
+        self.only_drone_index = []
+        self.fly_node_index = []
+        self.catch_node_index = []
+        self.subroutes = []
+        self.generate_subroutes(self.extract_first_elements(route_info['path']))
+        
+        diclist = {'vtype': 'truck', 'vid': 't'+ str(route_index + 1), 'path': self.route_tuples(route_info['path'])}
+        
+        empty_list.append(diclist)
+
+    return {
+        'num_t' : int(len(empty_list)/2),
+        'num_d' : int(len(empty_list)/2),
+        'route' : empty_list
+    }
+
+def makemake(self):
+    #단순히 정보를 가진 튜플만 생성하는 함수
+    empty_list = []
+
+    for route_index, route_info in enumerate(self.routes):
+        self.depot_end = len(route_info['path']) - 1
+        # self.can_fly = len(self.routes['path']) - k - l
+        self.SERVICE = 0
+        self.CATCH = 0
+        self.only_drone_index = []
+        self.fly_node_index = []
+        self.catch_node_index = []
+        self.subroutes = []
+        self.generate_subroutes(route_info['path'])
+        
+        diclist = {'vtype': 'truck', 'vid': 't'+ str(route_index + 1), 'path': self.route_tuples(route_info['path'])}
+        
+        empty_list.append(diclist)
+
+    return {
+        'num_t' : int(len(empty_list)/2),
+        'num_d' : int(len(empty_list)/2),
+        'route' : empty_list
+    }
+
+def makemakemake(self):
+    empty_list = []
+
+    for route_index, route_info in enumerate(self.routes):
+        self.depot_end = len(route_info['path']) - 1
+        # self.can_fly = len(self.routes['path']) - k - l
+        self.SERVICE = 0
+        self.CATCH = 0
+        self.only_drone_index = []
+        self.fly_node_index = []
+        self.catch_node_index = []
+        self.subroutes = []
+        self.generate_subroutes(route_info['path'])
+        diclist = self.dividing_route(self.route_tuples(route_info['path']), route_index)
+        
+        empty_list.extend(diclist)
+
+    return {
+        'num_t' : int(len(empty_list)/2),
+        'num_d' : int(len(empty_list)/2),
+        'route' : empty_list
+    }
+
+"""
