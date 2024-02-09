@@ -30,6 +30,8 @@ initializer = RouteInitializer(data, k=2, l=1, max_drone_mission=4)
 initial_solution = initializer.nearest_neighbor_init_truck()
 current_route = initializer.makemakemake(initial_solution)
 
+print("\nininitial route(NN) :", initial_solution)
+
 ### currnet route 정보 출력 debugging code
 print("\nCurrent routes :", current_route)
 print("\nCurrent Objective cost :",MultiModalState(current_route).objective())
