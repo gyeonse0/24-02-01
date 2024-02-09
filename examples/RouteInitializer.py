@@ -69,6 +69,7 @@ class RouteInitializer:
         return {
             'num_t': int(len(empty_list) / 2),
             'num_d': int(len(empty_list) / 2),
+            'one_path': self.combine_paths(empty_list),
             'route': empty_list
         }
 
@@ -108,3 +109,29 @@ class RouteInitializer:
             {'vtype': 'drone', 'vid': 'd' + str(route_index + 1), 'path': drone_route},
             {'vtype': 'truck', 'vid': 't' + str(route_index + 1), 'path': truck_route},
         ]
+        
+    def combine_paths(self, route_data):
+        combined_paths = []
+        initial_solution = self.nearest_neighbor_init_truck()
+        nn_truck_paths = [route['path'] for route in initial_solution['route']]
+        
+        for i in range(len(route_data)):  # 모든 드론 및 트럭 경로에 대해 반복
+            if i % 2 == 0:  # 짝수 인덱스인 경우 드론 경로
+                nn_truck_path = nn_truck_paths[i // 2]
+                drone_route = route_data[i]['path']
+                truck_route = route_data[i + 1]['path']
+                
+                filled_path = []
+                for node, value in drone_route[:-1]:
+                    if node not in [point[0] for point in filled_path]:
+                        filled_path.append((node, value))
+                
+                for node, value in truck_route[:-1]:
+                    if node not in [point[0] for point in filled_path]:
+                        filled_path.append((node, value))
+            
+                filled_path = sorted(filled_path, key=lambda x: nn_truck_path[:-1].index(x[0]))
+                filled_path.append(drone_route[-1])
+                combined_paths.append(filled_path)
+        
+        return combined_paths
