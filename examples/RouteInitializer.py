@@ -1,6 +1,8 @@
 import numpy as np
 import random
 
+from MultiModalState import *
+
 class RouteInitializer:
     def __init__(self, data, k, l, max_drone_mission):
         self.data = data
@@ -49,6 +51,19 @@ class RouteInitializer:
             'num_d': 0,
             'route': [{'vtype': 'truck', 'vid': f't{i + 1}', 'path': path} for i, path in enumerate(truck_init_routes)]
         }
+    
+    def init_truck(self):
+        # nearest_neighbor_init_truck() 메서드 호출
+        truck_init_routes = self.nearest_neighbor_init_truck()
+        init_truck=[]
+        # 각 경로를 튜플로 변환
+        for route in truck_init_routes['route']:
+            tuple_route = [(node, 0) for node in route['path']]
+            init_truck.append(tuple_route)
+        
+        return MultiModalState(init_truck)
+        
+        
 
     def makemakemake(self, state):
         empty_list = []
@@ -66,12 +81,7 @@ class RouteInitializer:
 
             empty_list.extend(diclist)
 
-        return {
-            'num_t': int(len(empty_list) / 2),
-            'num_d': int(len(empty_list) / 2),
-            'one_path': self.combine_paths(empty_list),
-            'route': empty_list
-        }
+        return MultiModalState(self.combine_paths(empty_list))
 
     def generate_subroutes(self, each_route):
         while len(self.subroutes) < self.max_drone_mission:
@@ -110,6 +120,8 @@ class RouteInitializer:
             {'vtype': 'truck', 'vid': 't' + str(route_index + 1), 'path': truck_route},
         ]
         
+    
+    
     def combine_paths(self, route_data):
         combined_paths = []
         initial_solution = self.nearest_neighbor_init_truck()
