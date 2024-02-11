@@ -8,10 +8,11 @@ import numpy as np
 import numpy.random as rnd
 from typing import List
 
+from RouteGenerator import *
 from FileReader import *
 
-vrp_file_path = r'C:\Users\User\OneDrive\바탕 화면\ALNS-master\ALNS-master\examples\data\multi_modal_data.vrp'
-sol_file_path = r'C:\Users\User\OneDrive\바탕 화면\ALNS-master\ALNS-master\examples\data\multi_modal_data.sol'
+vrp_file_path = r'C:\Users\82102\Desktop\ALNS-master\examples\data\multi_modal_data.vrp'
+sol_file_path = r'C:\Users\82102\Desktop\ALNS-master\examples\data\multi_modal_data.sol'
 
 file_reader = FileReader()
 data = file_reader.read_vrp_file(vrp_file_path)
@@ -24,14 +25,21 @@ class MultiModalState:
     output: objective cost value / 특정 customer node를 포함한 route  
     """
 
-    def __init__(self, routes):
+    def __init__(self, routes,unassigned=None):
         self.routes = routes
+        self.unassigned = unassigned if unassigned is not None else []
 
     def copy(self):
         return MultiModalState(
-            copy.deepcopy(self.routes)
+            copy.deepcopy(self.routes, self.unassigned.copy())
         )
-
+        
+    def __str__(self):
+        return f"Routes: {self.routes}, Unassigned: {self.unassigned}" 
+    
+    def __iter__(self):
+        return iter(self.routes)       
+        
     def objective(self):
         """
         data와 routes 딕셔너리 집합을 이용하여 objective value 계산해주는 함수
@@ -39,11 +47,13 @@ class MultiModalState:
         energy_consunmption(kwh)={Truck edge cost(km), Truck energy consumption(kwh/km), Drone edge cost(km), Drone energy consumption(kwh/km)}
         TO DO: 이후에 logistic_load 등의 데이터 등을 추가로 활용하여 energy_consumption 모델링 확장 필요
         """
+        divided_routes = apply_dividing_route_to_routes(self.routes)
+        
         energy_consumption = 0.0
 
-        for route in self.routes['route']: 
-            vtype = route['vtype']
-            path = route['path']
+        for route_info in divided_routes:
+            vtype = route_info['vtype']
+            path = route_info['path']
 
             if vtype == 'truck':
                 for i in range(len(path) - 1):
@@ -53,7 +63,7 @@ class MultiModalState:
                     edge_weight = data["edge_km_t"][loc_from][loc_to]
                     energy_consumption += edge_weight * data["energy_kwh/km_t"]
 
- 
+
             elif vtype == 'drone': #드론은 1(fly)부터 3(catch)까지만의 edge를 반복적으로 고려해준다는 알고리즘
                 start_index = None
                 for j in range(len(path)):
@@ -64,7 +74,7 @@ class MultiModalState:
                             edge_weight = data["edge_km_d"][path[k][0]][path[k+1][0]]
                             energy_consumption += edge_weight * data["energy_kwh/km_d"]
                         start_index = None
- 
+
         return energy_consumption
 
     
