@@ -1,149 +1,90 @@
-import numpy as np
+import copy
 import random
+from types import SimpleNamespace
+import vrplib 
+import matplotlib
+import matplotlib.pyplot as plt
+import numpy as np
+import numpy.random as rnd
+from typing import List
 
 from MultiModalState import *
 
-class RouteInitializer:
-    def __init__(self, data, k, l, max_drone_mission):
+class SolutionPlotter:
+    """
+    특정 route를 기반으로 location 및 path, cost 정보등을 시각화 해주는 클래스
+    """
+    def __init__(self, data):
         self.data = data
-        self.k = k
-        self.l = l
-        self.max_drone_mission = max_drone_mission
+        self.drone_colors = ['red', 'blue', 'green', 'orange', 'purple']
+        self.truck_colors = ['cyan', 'magenta', 'yellow', 'lime', 'pink']
+        self.drone_color_index = 0
+        self.truck_color_index = 0
 
-    def neighbors_init_truck(self, customer):
-        locations = np.argsort(self.data["edge_km_t"][customer])
-        return locations[locations != 0]
+    def get_next_drone_color(self):
+        color = self.drone_colors[self.drone_color_index]
+        self.drone_color_index = (self.drone_color_index + 1) % len(self.drone_colors)
+        return color
 
-    def validate_truck_routes(self, truck_routes):
-        for route in truck_routes:
-            consecutive_zeros = sum(1 for loc in route if loc == 0)
-            if consecutive_zeros > 2:
-                raise ValueError("Unable to satisfy demand with the given number of trucks!!")
+    def get_next_truck_color(self):
+        color = self.truck_colors[self.truck_color_index]
+        self.truck_color_index = (self.truck_color_index + 1) % len(self.truck_colors)
+        return color
 
-    def nearest_neighbor_init_truck(self):
-        truck_init_routes = [[] for _ in range(self.data["num_t"])]
-        unvisited = set(range(1, self.data["dimension"]))
-
-        while unvisited:
-            for i in range(self.data["num_t"]):
-                route = [0]
-                route_demands = 0
-
-                while unvisited:
-                    current = route[-1]
-                    neighbors = [nb for nb in self.neighbors_init_truck(current) if nb in unvisited]
-                    nearest = neighbors[0]
-
-                    if route_demands + self.data["demand"][nearest] > self.data["capacity_t"]:
-                        break
-
-                    route.append(nearest)
-                    unvisited.remove(nearest)
-                    route_demands += self.data["demand"][nearest]
-
-                route.append(0)
-                truck_init_routes[i].extend(route[0:])
-
-        self.validate_truck_routes(truck_init_routes)
-
-        return {
-            'num_t': len(truck_init_routes),
-            'num_d': 0,
-            'route': [{'vtype': 'truck', 'vid': f't{i + 1}', 'path': path} for i, path in enumerate(truck_init_routes)]
-        }
-    
-    def init_truck(self):
-        # nearest_neighbor_init_truck() 메서드 호출
-        truck_init_routes = self.nearest_neighbor_init_truck()
-        init_truck=[]
-        # 각 경로를 튜플로 변환
-        for route in truck_init_routes['route']:
-            tuple_route = [(node, 0) for node in route['path']]
-            init_truck.append(tuple_route)
+    def plot_current_solution(self, state, name="Multi_Modal Solution"):
+        """
+        우리가 뽑아낸 routes 딕셔너리 집합과 solution class를 통해서 현재의 cost와 path를 plot 해주는 함수
+        """
+        fig, ax = plt.subplots(figsize=(12, 10))
+        routess = MultiModalState(state)
         
-        return MultiModalState(init_truck)
-        
-        
+        divided_routes = apply_dividing_route_to_routes(routess.routes)
 
-    def makemakemake(self, state):
-        empty_list = []
+        for route_info in divided_routes:
+            vtype = route_info['vtype']
+            vid = route_info['vid']
+            path = route_info['path']
 
-        for route_index, route_info in enumerate(state['route']):
-            self.depot_end = len(route_info['path']) - 1
-            self.SERVICE = 0
-            self.CATCH = 0
-            self.only_drone_index = []
-            self.fly_node_index = []
-            self.catch_node_index = []
-            self.subroutes = []
-            self.generate_subroutes(route_info['path'])
-            diclist = self.dividing_route(self.route_tuples(route_info['path']), route_index)
+            if vtype == 'drone':
+                color = self.get_next_drone_color()
+                path = path if isinstance(path, list) else path[0]
+                loc_getter = lambda loc: loc[0] if isinstance(loc, tuple) else loc
+                linestyle = '--'
+                offset = 0.0001 * (self.drone_color_index + 1) 
+                linewidth=2
 
-            empty_list.extend(diclist)
+            elif vtype == 'truck':
+                color = self.get_next_truck_color()  # 겹치지 않는 색상 생성
+                path = path if isinstance(path, list) else path[0]
+                loc_getter = lambda loc: loc[0] if isinstance(loc, tuple) else loc
+                linestyle = '-'
+                offset = 0
+                linewidth=1
 
-        return MultiModalState(self.combine_paths(empty_list))
+            # 경로 그리기
+            ax.plot(
+                [self.data['node_coord'][loc_getter(loc)][0] for loc in path],
+                [self.data['node_coord'][loc_getter(loc)][1]+ offset for loc in path],
+                color=color,
+                linestyle=linestyle, 
+                linewidth=linewidth,
+                marker='.',
+                label=f'{vtype} {vid}'
+            )
 
-    def generate_subroutes(self, each_route):
-        while len(self.subroutes) < self.max_drone_mission:
-            self.FLY = random.choice(range(self.CATCH, len(each_route)))
-            self.SERVICE = self.FLY + self.k
-            self.CATCH = self.SERVICE + self.l
-            if self.CATCH > self.depot_end:
-                break
-            subroute = list(range(self.FLY, self.CATCH + 1))
-            self.subroutes.append(subroute)
-            self.fly_node_index.append(self.FLY)
-            self.only_drone_index.append(self.SERVICE)
-            self.catch_node_index.append(self.CATCH)
+            # 방향 화살표 그리기
+            for i in range(len(path)-1):
+                start = self.data['node_coord'][loc_getter(path[i])]
+                end = self.data['node_coord'][loc_getter(path[i+1])]
+                ax.annotate("", xy=(end[0], end[1] + offset), xytext=(start[0], start[1] + offset), arrowprops=dict(arrowstyle="->", color=color))
 
-    def route_tuples(self, each_route):
-        visit_type = [0] * len(each_route)
-        visit_type = [
-            1 if index in self.fly_node_index else
-            2 if index in self.only_drone_index else
-            3 if index in self.catch_node_index else
-            0 for index in range(len(visit_type))
-        ]
-        for i in [
-            i for subroute in self.subroutes
-            for i in subroute[1:-1] if i not in self.only_drone_index
-        ]:
-            visit_type[i] = 4
-        return list(zip(each_route, visit_type))
 
-    def dividing_route(self, route_with_info, route_index):
-        truck_route = [value for value in route_with_info if value[1] != 2]
-        drone_route = [value for value in route_with_info if value[1] != 4]
-
-        return [
-            {'vtype': 'drone', 'vid': 'd' + str(route_index + 1), 'path': drone_route},
-            {'vtype': 'truck', 'vid': 't' + str(route_index + 1), 'path': truck_route},
-        ]
-        
-    
-    
-    def combine_paths(self, route_data):
-        combined_paths = []
-        initial_solution = self.nearest_neighbor_init_truck()
-        nn_truck_paths = [route['path'] for route in initial_solution['route']]
-        
-        for i in range(len(route_data)):  # 모든 드론 및 트럭 경로에 대해 반복
-            if i % 2 == 0:  # 짝수 인덱스인 경우 드론 경로
-                nn_truck_path = nn_truck_paths[i // 2]
-                drone_route = route_data[i]['path']
-                truck_route = route_data[i + 1]['path']
-                
-                filled_path = []
-                for node, value in drone_route[:-1]:
-                    if node not in [point[0] for point in filled_path]:
-                        filled_path.append((node, value))
-                
-                for node, value in truck_route[:-1]:
-                    if node not in [point[0] for point in filled_path]:
-                        filled_path.append((node, value))
-            
-                filled_path = sorted(filled_path, key=lambda x: nn_truck_path[:-1].index(x[0]))
-                filled_path.append(drone_route[-1])
-                combined_paths.append(filled_path)
-        
-        return combined_paths
+        kwargs = dict(label="Depot", zorder=3, marker="s", s=80)
+        ax.scatter(*self.data["node_coord"][self.data["depot"]], c="tab:red", **kwargs)
+        for node, (x, y) in self.data["node_coord"].items():
+            ax.annotate(str(node), (x, y), textcoords="offset points", xytext=(0, 5), ha='center')
+        ax.set_title(f"{name}\nTotal Energy Consumption(cost): {MultiModalState(state).objective()} kWh")
+        ax.set_xlabel("X-coordinate")
+        ax.set_ylabel("Y-coordinate")
+        ax.legend(frameon=False, ncol=3)
+        plt.show()
