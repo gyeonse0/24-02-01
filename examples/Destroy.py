@@ -29,20 +29,9 @@ NULL = None
 
 degree_of_destruction = 0.3
 customers_to_remove = int((data["dimension"] - 1) * degree_of_destruction)
-rnd_state = np.random.RandomState(None)
 
 class Destroy:
-    def __init__(self, routes, unassigned=None):
-        self.routes = routes
-        self.unassigned = unassigned if unassigned is not None else []
-    
-    def copy(self): # _copy 숨겨진 FUNCTION 주의
-        return Destroy(
-                copy.deepcopy(self.routes),
-                unassigned=self.unassigned.copy()
-            )
-
-    def random_removal(self, rnd_state):
+    def random_removal(self, state, rnd_state):
         """
         내가 설정한 파괴 상수에 따라 파괴할 고객의 수가 결정되고, 그에 따라 랜덤으로 고객노드를 제거한다.
         one_path 읽어와서 visit type update 후, 분할하면 훨씬 간단 -> 2, 4 는 1, 3 사이에 올 수 밖에 없음을 이용
@@ -63,28 +52,28 @@ class Destroy:
 
         오퍼레이터 클래스 -> (디스트로이+리페어 ) + DEF UPDATE
         """
-        destroyed = self.copy()
-        drone_path = None
-        truck_path = None
+        destroyer = MultiModalState(state)
+        routes = destroyer.routes
+        unassigned = destroyer.unassigned
 
         for customer in rnd_state.choice(
             range(1, data["dimension"]), customers_to_remove, replace=False):
             
-            for route in destroyed.routes["one_path"]:
+            for route in routes:
                 
                 for i in range(0, len(route) - 1):
                     if route[i][0] == customer:
                         if route[i][1] == IDLE:
                             route[i] = (route[i][0], NULL)
-                            if (route[i][0], route[i][1]) not in destroyed.unassigned:
-                                destroyed.unassigned.append((route[i][0], route[i][1]))
+                            if (route[i][0], route[i][1]) not in unassigned:
+                                unassigned.append((route[i][0], route[i][1]))
                                 
                 for i in range(1, len(route)-1):
                     if route[i][0] == customer:
                         if route[i][1] == ONLY_DRONE:
                             route[i] = (route[i][0], NULL)
-                            if (route[i][0], route[i][1]) not in destroyed.unassigned:
-                                destroyed.unassigned.append((route[i][0], route[i][1]))
+                            if (route[i][0], route[i][1]) not in unassigned:
+                                unassigned.append((route[i][0], route[i][1]))
                             
                             if i == 1:
                                 if route[i - 1][1] == FLY:
@@ -94,8 +83,8 @@ class Destroy:
                             while j<= len(route) and (route[j][1] != FLY and route[j][1] != CATCH):
                                 if route[j][1] == ONLY_DRONE:
                                     route[j] = (route[j][0], NULL)
-                                    if (route[j][0], route[j][1]) not in destroyed.unassigned:
-                                        destroyed.unassigned.append((route[j][0], route[j][1]))
+                                    if (route[j][0], route[j][1]) not in unassigned:
+                                        unassigned.append((route[j][0], route[j][1]))
                                 elif route[j][1] == ONLY_TRUCK and route[j][1] != NULL:
                                     route[j] = (route[j][0], IDLE)
                                 j += 1
@@ -109,8 +98,8 @@ class Destroy:
                                 while k >= 0 and route[k][1] != FLY:
                                     if route[k][1] == ONLY_DRONE:
                                         route[k] = (route[k][0], NULL)
-                                        if (route[k][0], route[k][1]) not in destroyed.unassigned:
-                                            destroyed.unassigned.append((route[k][0], route[k][1]))
+                                        if (route[k][0], route[k][1]) not in unassigned:
+                                            unassigned.append((route[k][0], route[k][1]))
                                     elif route[k][1] == ONLY_TRUCK:
                                         route[k] = (route[k][0], IDLE)
                                     k -= 1
@@ -132,14 +121,14 @@ class Destroy:
                     if route[i][0] == customer:
                         if route[i][1] == CATCH:
                             route[i] = (route[i][0], NULL)
-                            if (route[i][0], route[i][1]) not in destroyed.unassigned:
-                                destroyed.unassigned.append((route[i][0], route[i][1]))
+                            if (route[i][0], route[i][1]) not in unassigned:
+                                unassigned.append((route[i][0], route[i][1]))
                             j = i - 1
                             while j>0 and route[j][1] != FLY:
                                 if route[j][1] == ONLY_DRONE:
                                     route[j] = (route[j][0], NULL)
-                                    if (route[j][0], route[j][1]) not in destroyed.unassigned:
-                                        destroyed.unassigned.append((route[j][0], route[j][1]))
+                                    if (route[j][0], route[j][1]) not in unassigned:
+                                        unassigned.append((route[j][0], route[j][1]))
                                 elif route[j][1] == ONLY_TRUCK and route[j][1] != NULL:
                                     route[j] = (route[j][0], IDLE)
                                 j -= 1
@@ -163,15 +152,11 @@ class Destroy:
                     if route[i][0] == customer:
                         if route[i][1] == ONLY_TRUCK:
                             route[i] = (route[i][0], NULL)
-                            if (route[i][0], route[i][1]) not in destroyed.unassigned:
-                                destroyed.unassigned.append((route[i][0], route[i][1]))
+                            if (route[i][0], route[i][1]) not in unassigned:
+                                unassigned.append((route[i][0], route[i][1]))
                                 
                                 
-            destroyed.routes['one_path'] = [[point for point in route if point[1] is not None] for route in destroyed.routes['one_path']]
-            divided_routes = apply_dividing_route_to_routes(destroyed.routes['one_path'])
+            routes = [[point for point in route if point[1] is not None] for route in routes]
+            divided_routes = apply_dividing_route_to_routes(routes)
 
-        return {'num_t':len(destroyed.routes["one_path"]),
-                'num_d':len(destroyed.routes["one_path"]),
-                'one_path': destroyed.routes["one_path"],
-                'unassigned': destroyed.unassigned,
-                'route': divided_routes}
+        return MultiModalState(routes, unassigned)
